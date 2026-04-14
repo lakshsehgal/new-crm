@@ -9,6 +9,7 @@ import LeadAboutEditor from "./LeadAboutEditor";
 import AddContactButton from "./AddContactButton";
 import AddOppButton from "./AddOppButton";
 import CustomFieldsEditor from "@/components/CustomFieldsEditor";
+import Section, { SectionIconBtn as IconBtn } from "@/components/Section";
 import {
   Mail,
   Phone,
@@ -17,7 +18,6 @@ import {
   Trophy,
   IdCard,
   ListChecks,
-  ChevronRight,
   Plus,
   Search,
   MoreHorizontal,
@@ -292,48 +292,3 @@ export default async function LeadDetailPage({
   );
 }
 
-function Section({
-  icon,
-  iconBg,
-  title,
-  count,
-  right,
-  children,
-  defaultOpen = false,
-}: {
-  icon?: React.ReactNode;
-  iconBg?: string;
-  title: string;
-  count?: number;
-  right?: React.ReactNode;
-  children?: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  return (
-    <details className="section" open={defaultOpen}>
-      <summary>
-        <span className="chev">
-          <ChevronRight size={14} />
-        </span>
-        {icon && (
-          <span className={"sec-ico " + (iconBg ?? "bg-surface")}>{icon}</span>
-        )}
-        <span className="sec-title">{title}</span>
-        {typeof count === "number" && <span className="sec-count">{count}</span>}
-        <span className="ml-auto flex items-center gap-1">{right}</span>
-      </summary>
-      {children && <div className="bg-white">{children}</div>}
-    </details>
-  );
-}
-
-function IconBtn({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <span
-      className="size-5 grid place-items-center rounded text-muted hover:bg-surface hover:text-ink cursor-pointer"
-      title={title}
-    >
-      {children}
-    </span>
-  );
-}
