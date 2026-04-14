@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragEndEvent,
@@ -293,18 +294,29 @@ function StageColumnContent({
 }
 
 function DraggableKanbanCard({ card }: { card: Card }) {
+  const router = useRouter();
   const { setNodeRef, attributes, listeners, transform, isDragging } = useDraggable({
     id: "card:" + card.id,
   });
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
+      onClick={(e) => {
+        // The drag sensor only activates after 5px of pointer movement; a
+        // plain click on the card falls through here and navigates.
+        if (isDragging) return;
+        const target = e.target as HTMLElement;
+        // Don't hijack internal anchors (e.g. the company-name Link)
+        if (target.closest("a")) return;
+        router.push(`/app/opportunities/${card.id}`);
+      }}
       className={"opp-card " + (isDragging ? "opacity-30" : "")}
     >
       <CardContent card={card} />
@@ -332,7 +344,7 @@ function CardContent({ card }: { card: Card }) {
         <div className="avatar">{card.ownerInitials ?? "–"}</div>
         <div className="value-col">
           <div className="value-amt truncate">
-            {Number(card.value) > 0 ? formatMoney(card.value, card.currency) : card.name}
+            {Number(card.value) > 0 ? formatMoney(card.value) : card.name}
           </div>
           <div className="value-prob">{card.probability}%</div>
         </div>

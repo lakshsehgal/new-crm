@@ -160,6 +160,31 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
 .tbl tr { transition: background-color 120ms ease; }
 .tbl tr:hover td { @apply bg-accentSoft/30; }
 
+/* Detail-page collapsible sections (Close style) */
+.section {
+  @apply bg-white border border-border rounded-lg overflow-hidden;
+}
+.section > summary {
+  @apply px-3 py-2.5 flex items-center gap-2 cursor-pointer select-none bg-surface;
+  transition: background-color 100ms ease;
+  list-style: none;
+}
+.section > summary::-webkit-details-marker { display: none; }
+.section > summary:hover { @apply bg-surface/70; }
+.section .chev {
+  @apply text-mutedSoft transition-transform duration-150;
+}
+.section[open] > summary .chev { transform: rotate(90deg); }
+.section .sec-ico {
+  @apply size-4 grid place-items-center rounded;
+}
+.section .sec-title {
+  @apply text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted;
+}
+.section .sec-count {
+  @apply inline-flex items-center justify-center text-[11px] font-semibold text-muted bg-white border border-border rounded-full min-w-5 h-5 px-1.5;
+}
+
 /* Modal overlay */
 .modal-overlay {
   @apply fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4;

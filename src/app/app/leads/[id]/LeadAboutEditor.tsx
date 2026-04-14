@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, MapPin, Link2, AlignLeft, User } from "lucide-react";
 
 type LeadForEdit = {
   id: string;
@@ -38,9 +38,20 @@ export default function LeadAboutEditor({ lead }: { lead: LeadForEdit }) {
   }
 
   return (
-    <div>
+    <div className="py-1">
+      <InlineRow
+        label="Address"
+        icon={<MapPin size={13} />}
+        value={data.address}
+        saving={saving === "address"}
+        onCommit={(v) => {
+          setData({ ...data, address: v });
+          void save("address", v);
+        }}
+      />
       <InlineRow
         label="Website"
+        icon={<Link2 size={13} />}
         value={data.url}
         kind="url"
         saving={saving === "url"}
@@ -50,16 +61,8 @@ export default function LeadAboutEditor({ lead }: { lead: LeadForEdit }) {
         }}
       />
       <InlineRow
-        label="Address"
-        value={data.address}
-        saving={saving === "address"}
-        onCommit={(v) => {
-          setData({ ...data, address: v });
-          void save("address", v);
-        }}
-      />
-      <InlineRow
         label="Description"
+        icon={<AlignLeft size={13} />}
         value={data.description}
         multiline
         saving={saving === "description"}
@@ -68,13 +71,20 @@ export default function LeadAboutEditor({ lead }: { lead: LeadForEdit }) {
           void save("description", v);
         }}
       />
-      <ReadOnlyRow label="Owner" value={data.ownerEmail} />
+      {data.ownerEmail && (
+        <ReadOnlyRow
+          label="Owner"
+          icon={<User size={13} />}
+          value={data.ownerEmail}
+        />
+      )}
     </div>
   );
 }
 
 function InlineRow({
   label,
+  icon,
   value,
   kind = "text",
   multiline,
@@ -82,6 +92,7 @@ function InlineRow({
   onCommit,
 }: {
   label: string;
+  icon?: React.ReactNode;
   value: string | null;
   kind?: "text" | "url";
   multiline?: boolean;
@@ -99,79 +110,83 @@ function InlineRow({
   if (!editing) {
     return (
       <button
-        className="block w-full text-left px-4 py-2 hover:bg-surface/70 transition-colors"
+        className="group flex items-center gap-2.5 w-full text-left px-3 py-2 hover:bg-surface/70 rounded transition-colors"
         onClick={() => {
           setLocal(value ?? "");
           setEditing(true);
         }}
       >
+        {icon && <span className="text-mutedSoft flex-shrink-0">{icon}</span>}
         {value ? (
-          <>
-            <div className="text-[11px] uppercase tracking-wide text-mutedSoft mb-0.5 flex items-center gap-1">
-              <span>{label}</span>
-              {saving && <span className="text-[10px] lowercase text-mutedSoft">saving…</span>}
-            </div>
-            {kind === "url" ? (
-              <span className="flex items-center gap-1 text-accent break-all text-[13px]">
-                <span className="truncate">{value}</span>
-                <ExternalLink size={11} className="flex-shrink-0" />
-              </span>
-            ) : (
-              <div className="text-[13px] whitespace-pre-wrap">{value}</div>
-            )}
-          </>
+          kind === "url" ? (
+            <span className="flex-1 flex items-center gap-1 text-accent break-all text-[13px] min-w-0">
+              <span className="truncate">{value}</span>
+              <ExternalLink size={11} className="flex-shrink-0" />
+            </span>
+          ) : (
+            <span className="flex-1 text-[13px] whitespace-pre-wrap">{value}</span>
+          )
         ) : (
-          <span className="text-[13px] text-mutedSoft italic">
+          <span className="flex-1 text-[13px] text-mutedSoft">
             Add {label.toLowerCase()}…
           </span>
         )}
+        {saving && <span className="text-[10px] text-mutedSoft">saving…</span>}
       </button>
     );
   }
 
   return (
-    <div className="px-4 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-mutedSoft mb-1 flex items-center gap-2">
-        <span>{label}</span>
-        {saving && <span className="text-[10px] lowercase">saving…</span>}
+    <div className="flex items-start gap-2.5 px-3 py-2">
+      {icon && <span className="text-mutedSoft flex-shrink-0 mt-1.5">{icon}</span>}
+      <div className="flex-1">
+        {multiline ? (
+          <textarea
+            autoFocus
+            className="input min-h-[72px]"
+            placeholder={`Add ${label.toLowerCase()}…`}
+            value={local}
+            onChange={(e) => setLocal(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+        ) : (
+          <input
+            autoFocus
+            type={kind === "url" ? "url" : "text"}
+            className="input"
+            placeholder={`Add ${label.toLowerCase()}…`}
+            value={local}
+            onChange={(e) => setLocal(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commit();
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+        )}
+        {saving && <span className="text-[10px] text-mutedSoft">saving…</span>}
       </div>
-      {multiline ? (
-        <textarea
-          autoFocus
-          className="input min-h-[72px]"
-          placeholder={`Add ${label.toLowerCase()}…`}
-          value={local}
-          onChange={(e) => setLocal(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setEditing(false);
-          }}
-        />
-      ) : (
-        <input
-          autoFocus
-          type={kind === "url" ? "url" : "text"}
-          className="input"
-          placeholder={`Add ${label.toLowerCase()}…`}
-          value={local}
-          onChange={(e) => setLocal(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commit();
-            if (e.key === "Escape") setEditing(false);
-          }}
-        />
-      )}
     </div>
   );
 }
 
-function ReadOnlyRow({ label, value }: { label: string; value: string | null }) {
+function ReadOnlyRow({
+  label,
+  icon,
+  value,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  value: string | null;
+}) {
   if (!value) return null;
   return (
-    <div className="px-4 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-mutedSoft mb-0.5">{label}</div>
-      <div className="text-[13px] break-all">{value}</div>
+    <div className="flex items-center gap-2.5 px-3 py-2">
+      {icon && <span className="text-mutedSoft flex-shrink-0">{icon}</span>}
+      <span className="flex-1 text-[13px] break-all">{value}</span>
     </div>
   );
 }
