@@ -80,6 +80,7 @@ model User {
   activities         Activity[]
   apiKeys            ApiKey[]
   emails             Email[]
+  emailTemplates     EmailTemplate[]
   gmailSync          GmailSync?
 }
 
@@ -308,6 +309,21 @@ model GmailSync {
   enabled      Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+/// Shared email templates. Supports {{placeholder}} tokens that are
+/// substituted client-side when composing from a Lead/Contact/Opportunity.
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  subject   String
+  body      String   @db.Text
+  createdBy String?
+  creator   User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdBy])
 }
 
 model Email {

@@ -12,7 +12,6 @@ import {
   SlidersHorizontal,
   Plug,
   Shield,
-  Key,
   LifeBuoy,
   Settings as SettingsIcon,
   ChevronsLeft,
@@ -107,11 +106,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <LifeBuoy size={14} />
             <span className="flex-1">Support &amp; FAQs</span>
           </Link>
-          <Link href="/app/settings/api-keys" className="footer-link">
-            <Key size={14} />
-            <span className="flex-1">API keys</span>
-          </Link>
-          <Link href="/app/settings/api-keys" className="footer-link">
+          <Link href="/app/settings/email" className="footer-link">
             <SettingsIcon size={14} />
             <span className="flex-1">Settings</span>
           </Link>

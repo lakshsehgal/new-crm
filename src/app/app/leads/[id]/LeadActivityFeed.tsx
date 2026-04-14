@@ -3,7 +3,15 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { StickyNote, Mail, MessageSquare, Phone, Sparkles } from "lucide-react";
+import {
+  StickyNote,
+  Mail,
+  MessageSquare,
+  Phone,
+  Sparkles,
+  ExternalLink,
+} from "lucide-react";
+import SendEmailButton from "@/components/SendEmailButton";
 
 type Activity = {
   id: string;
@@ -14,12 +22,37 @@ type Activity = {
   user?: { email: string; name: string | null } | null;
 };
 
+type Email = {
+  id: string;
+  subject: string;
+  snippet: string | null;
+  fromEmail: string;
+  fromName: string | null;
+  direction: string;
+  sentAt: string;
+};
+
+type Contact = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+};
+
 export default function LeadActivityFeed({
   leadId,
+  leadName,
   activities,
+  emails,
+  contacts,
+  myName,
 }: {
   leadId: string;
+  leadName: string;
   activities: Activity[];
+  emails: Email[];
+  contacts: Contact[];
+  myName: string | null;
 }) {
   const [tab, setTab] = useState<"all" | "important" | "conversations" | "notes">("all");
   const [noteOpen, setNoteOpen] = useState(false);
@@ -27,9 +60,11 @@ export default function LeadActivityFeed({
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  const filtered = activities.filter((a) => {
-    if (tab === "notes") return a.type === "NOTE";
-    if (tab === "conversations") return a.type === "EMAIL" || a.type === "CALL" || a.type === "MEETING";
+  // Merge activities + emails into a unified timeline
+  const items = mergeTimeline(activities, emails);
+  const filtered = items.filter((a) => {
+    if (tab === "notes") return a.kind === "activity" && a.type === "NOTE";
+    if (tab === "conversations") return a.kind === "email" || a.type === "CALL" || a.type === "MEETING";
     return true;
   });
 
@@ -57,13 +92,15 @@ export default function LeadActivityFeed({
         <button className="btn" onClick={() => setNoteOpen((o) => !o)}>
           <StickyNote size={14} /> Note
         </button>
-        <button className="btn" title="Email (requires Gmail connection)">
-          <Mail size={14} /> Email
-        </button>
+        <SendEmailButton
+          contacts={contacts}
+          defaultContext={{ company: leadName, myName: myName ?? "" }}
+          compact
+        />
         <button className="btn opacity-60 cursor-not-allowed" title="SMS coming soon">
           <MessageSquare size={14} /> SMS
         </button>
-        <button className="btn" title="Call logging">
+        <button className="btn" title="Log a call">
           <Phone size={14} /> Call
         </button>
       </div>
@@ -116,30 +153,74 @@ export default function LeadActivityFeed({
       <div className="flex-1 overflow-y-auto p-5 space-y-3">
         {filtered.length === 0 ? (
           <div className="text-center text-mutedSoft text-sm py-12">
-            No activity yet. Add a note to get started.
+            No activity yet. Add a note or send an email to get started.
           </div>
         ) : (
-          filtered.map((a) => (
-            <div key={a.id} className="flex gap-3">
-              <div className="size-6 rounded-md bg-surface border border-border grid place-items-center text-muted flex-shrink-0 mt-0.5">
-                <ActivityIcon type={a.type} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-medium">{a.title}</span>
-                  <span className="badge text-[10px]">{a.type}</span>
-                  <span className="ml-auto text-[11px] text-muted">
-                    {new Date(a.createdAt).toLocaleString()}
-                  </span>
-                </div>
-                {a.body && (
-                  <p className="text-[13px] text-muted mt-1 whitespace-pre-wrap">
-                    {a.body}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))
+          filtered.map((item) =>
+            item.kind === "email" ? (
+              <EmailRow key={"e" + item.id} email={item} />
+            ) : (
+              <ActivityRow key={"a" + item.id} activity={item} />
+            ),
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActivityRow({ activity: a }: { activity: Activity & { kind: "activity" } }) {
+  return (
+    <div className="flex gap-3">
+      <div className="size-6 rounded-md bg-surface border border-border grid place-items-center text-muted flex-shrink-0 mt-0.5">
+        <ActivityIcon type={a.type} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-medium">{a.title}</span>
+          <span className="badge text-[10px]">{a.type}</span>
+          <span className="ml-auto text-[11px] text-muted">
+            {new Date(a.createdAt).toLocaleString()}
+          </span>
+        </div>
+        {a.body && (
+          <p className="text-[13px] text-muted mt-1 whitespace-pre-wrap">{a.body}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmailRow({ email }: { email: Email & { kind: "email" } }) {
+  const outbound = email.direction === "outbound";
+  return (
+    <div className="flex gap-3">
+      <div
+        className={
+          "size-6 rounded-md grid place-items-center flex-shrink-0 mt-0.5 " +
+          (outbound
+            ? "bg-accentSoft text-accent"
+            : "bg-surface border border-border text-muted")
+        }
+      >
+        <Mail size={12} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-semibold truncate">{email.subject}</span>
+          <span className="badge text-[10px]">{outbound ? "SENT" : "INBOX"}</span>
+          <span className="ml-auto text-[11px] text-muted whitespace-nowrap">
+            {new Date(email.sentAt).toLocaleString()}
+          </span>
+        </div>
+        <div className="text-[12px] text-muted mt-0.5">
+          {outbound ? "To: " : "From: "}
+          {email.fromName ?? email.fromEmail}
+        </div>
+        {email.snippet && (
+          <p className="text-[13px] text-muted mt-1 whitespace-pre-wrap line-clamp-3">
+            {email.snippet}
+          </p>
         )}
       </div>
     </div>
@@ -160,4 +241,24 @@ function ActivityIcon({ type }: { type: string }) {
     default:
       return <StickyNote size={size} />;
   }
+}
+
+type TimelineItem =
+  | (Activity & { kind: "activity" })
+  | (Email & { kind: "email" });
+
+function mergeTimeline(
+  activities: Activity[],
+  emails: Email[],
+): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...activities.map((a) => ({ ...a, kind: "activity" as const })),
+    ...emails.map((e) => ({ ...e, kind: "email" as const })),
+  ];
+  items.sort((a, b) => {
+    const ta = a.kind === "email" ? a.sentAt : a.createdAt;
+    const tb = b.kind === "email" ? b.sentAt : b.createdAt;
+    return new Date(tb).getTime() - new Date(ta).getTime();
+  });
+  return items;
 }

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { formatMoney, initials } from "@/lib/utils";
 import LeadHeader from "./LeadHeader";
 import LeadActivityFeed from "./LeadActivityFeed";
@@ -30,6 +31,9 @@ export default async function LeadDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await auth();
+  const myName = (session?.user as any)?.name ?? session?.user?.email ?? null;
+
   const lead = await db.lead.findUnique({
     where: { id },
     include: {
@@ -48,12 +52,20 @@ export default async function LeadDetailPage({
   });
   if (!lead) notFound();
 
-  const [pipelines, customFields] = await Promise.all([
+  const contactIds = lead.contacts.map((c) => c.id);
+  const [pipelines, customFields, emails] = await Promise.all([
     db.pipeline.findMany({
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
       include: { stages: { orderBy: { order: "asc" } } },
     }),
     db.customField.findMany({ orderBy: { order: "asc" } }),
+    contactIds.length
+      ? db.email.findMany({
+          where: { contactId: { in: contactIds } },
+          orderBy: { sentAt: "desc" },
+          take: 50,
+        })
+      : Promise.resolve([] as any[]),
   ]);
 
   const openTaskCount = lead.activities.filter(
@@ -253,7 +265,27 @@ export default async function LeadDetailPage({
 
         {/* Right column — activity feed */}
         <section className="overflow-y-auto">
-          <LeadActivityFeed leadId={lead.id} activities={lead.activities as any} />
+          <LeadActivityFeed
+            leadId={lead.id}
+            leadName={lead.name}
+            activities={lead.activities as any}
+            emails={emails.map((e: any) => ({
+              id: e.id,
+              subject: e.subject,
+              snippet: e.snippet,
+              fromEmail: e.fromEmail,
+              fromName: e.fromName,
+              direction: e.direction,
+              sentAt: e.sentAt.toISOString(),
+            }))}
+            contacts={lead.contacts.map((c) => ({
+              id: c.id,
+              firstName: c.firstName,
+              lastName: c.lastName,
+              email: c.email,
+            }))}
+            myName={myName}
+          />
         </section>
       </div>
     </div>
