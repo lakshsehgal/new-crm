@@ -16,14 +16,17 @@ export default function NewOppButton({
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  async function submit(fd: FormData) {
+  async function submit(fd: FormData): Promise<void> {
     const body = Object.fromEntries(fd);
     const res = await fetch("/api/internal/opportunities", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...body, pipelineId }),
     });
-    if (!res.ok) return toast.error("Failed to create");
+    if (!res.ok) {
+      toast.error("Failed to create");
+      return;
+    }
     toast.success("Opportunity created");
     setOpen(false);
     start(() => router.refresh());

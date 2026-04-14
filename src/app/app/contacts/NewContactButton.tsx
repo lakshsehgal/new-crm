@@ -10,7 +10,7 @@ export default function NewContactButton() {
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  async function onSubmit(form: FormData) {
+  async function onSubmit(form: FormData): Promise<void> {
     const body = Object.fromEntries(form) as Record<string, string>;
     const res = await fetch("/api/internal/contacts", {
       method: "POST",
