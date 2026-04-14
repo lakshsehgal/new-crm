@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { formatMoney, initials } from "@/lib/utils";
 import LeadHeader from "./LeadHeader";
 import LeadActivityFeed from "./LeadActivityFeed";
+import LeadAboutEditor from "./LeadAboutEditor";
 import AddContactButton from "./AddContactButton";
 import AddOppButton from "./AddOppButton";
 import CustomFieldsEditor from "@/components/CustomFieldsEditor";
@@ -52,10 +53,15 @@ export default async function LeadDetailPage({
         <aside className="border-r border-border overflow-y-auto bg-white">
           {/* Details */}
           <Section title="About" defaultOpen>
-            <DetailRow label="Website" value={lead.url} isLink />
-            <DetailRow label="Address" value={lead.address} />
-            <DetailRow label="Description" value={lead.description} multiline />
-            <DetailRow label="Owner" value={lead.owner?.email ?? null} />
+            <LeadAboutEditor
+              lead={{
+                id: lead.id,
+                url: lead.url,
+                address: lead.address,
+                description: lead.description,
+                ownerEmail: lead.owner?.email ?? null,
+              }}
+            />
           </Section>
 
           {/* Tasks (placeholder count for now) */}
@@ -228,36 +234,3 @@ function Section({
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  isLink,
-  multiline,
-}: {
-  label: string;
-  value?: string | null;
-  isLink?: boolean;
-  multiline?: boolean;
-}) {
-  if (!value) {
-    return (
-      <div className="px-4 py-2 text-[13px] text-mutedSoft italic">
-        Add {label.toLowerCase()}…
-      </div>
-    );
-  }
-  return (
-    <div className="px-4 py-2 text-[13px]">
-      <div className="text-[11px] uppercase tracking-wide text-mutedSoft mb-0.5">
-        {label}
-      </div>
-      {isLink ? (
-        <a href={value} target="_blank" rel="noopener" className="text-accent hover:underline break-all">
-          {value}
-        </a>
-      ) : (
-        <div className={multiline ? "whitespace-pre-wrap" : "truncate"}>{value}</div>
-      )}
-    </div>
-  );
-}
