@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { initials } from "@/lib/utils";
 import ContactEditor from "./ContactEditor";
 import ActivityList from "./ActivityList";
 import EmailThread from "./EmailThread";
+import { Building2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +19,13 @@ export default async function ContactDetailPage({
     where: { id },
     include: {
       owner: true,
+      lead: {
+        include: {
+          opportunities: { include: { stage: true }, orderBy: { createdAt: "desc" } },
+        },
+      },
       activities: { orderBy: { createdAt: "desc" }, take: 50 },
       emails: { orderBy: { sentAt: "desc" }, take: 50 },
-      leads: true,
-      opportunities: true,
     },
   });
   if (!contact) notFound();
@@ -30,7 +35,8 @@ export default async function ContactDetailPage({
     orderBy: { order: "asc" },
   });
 
-  const name = [contact.firstName, contact.lastName].filter(Boolean).join(" ") || "(no name)";
+  const name =
+    [contact.firstName, contact.lastName].filter(Boolean).join(" ") || "(no name)";
 
   return (
     <div className="p-6 grid grid-cols-3 gap-5">
@@ -41,8 +47,18 @@ export default async function ContactDetailPage({
           </div>
           <div className="flex-1">
             <h1 className="text-lg font-semibold">{name}</h1>
-            <p className="text-sm text-muted">
-              {contact.title ? `${contact.title} · ` : ""}{contact.company ?? "—"}
+            <p className="text-sm text-muted flex items-center gap-2 mt-1">
+              {contact.title ? `${contact.title} · ` : ""}
+              {contact.lead ? (
+                <>
+                  <Building2 size={14} />
+                  <Link href={`/app/leads/${contact.lead.id}`} className="text-accent hover:underline">
+                    {contact.lead.name}
+                  </Link>
+                </>
+              ) : (
+                "—"
+              )}
             </p>
           </div>
         </div>
@@ -69,32 +85,29 @@ export default async function ContactDetailPage({
         <section className="card p-4">
           <div className="label">Details</div>
           <dl className="mt-2 space-y-2 text-sm">
-            <div className="flex gap-2"><dt className="w-20 text-muted">Email</dt><dd>{contact.email ?? "—"}</dd></div>
+            <div className="flex gap-2"><dt className="w-20 text-muted">Email</dt><dd className="flex-1 break-all">{contact.email ?? "—"}</dd></div>
             <div className="flex gap-2"><dt className="w-20 text-muted">Phone</dt><dd>{contact.phone ?? "—"}</dd></div>
-            <div className="flex gap-2"><dt className="w-20 text-muted">Owner</dt><dd>{contact.owner?.email ?? "—"}</dd></div>
+            <div className="flex gap-2"><dt className="w-20 text-muted">Owner</dt><dd className="flex-1 break-all">{contact.owner?.email ?? "—"}</dd></div>
             <div className="flex gap-2"><dt className="w-20 text-muted">Created</dt><dd>{new Date(contact.createdAt).toLocaleDateString()}</dd></div>
           </dl>
         </section>
 
-        <section className="card p-4">
-          <div className="label">Leads</div>
-          {contact.leads.length === 0 && <div className="text-sm text-muted mt-2">None</div>}
-          <ul className="mt-2 space-y-1 text-sm">
-            {contact.leads.map((l) => (
-              <li key={l.id}>{l.title} <span className="badge">{l.status}</span></li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="card p-4">
-          <div className="label">Opportunities</div>
-          {contact.opportunities.length === 0 && <div className="text-sm text-muted mt-2">None</div>}
-          <ul className="mt-2 space-y-1 text-sm">
-            {contact.opportunities.map((o) => (
-              <li key={o.id}>{o.name}</li>
-            ))}
-          </ul>
-        </section>
+        {contact.lead && (
+          <section className="card p-4">
+            <div className="label">Opportunities at this lead</div>
+            {contact.lead.opportunities.length === 0 && (
+              <div className="text-sm text-muted mt-2">None</div>
+            )}
+            <ul className="mt-2 space-y-1 text-sm">
+              {contact.lead.opportunities.map((o) => (
+                <li key={o.id} className="flex items-center justify-between">
+                  <span>{o.name}</span>
+                  <span className="badge">{o.stage.name}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </aside>
     </div>
   );

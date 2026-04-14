@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -5,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default async function ActivitiesPage() {
   const acts = await db.activity.findMany({
     orderBy: { createdAt: "desc" },
-    include: { contact: true, opportunity: true, user: true },
+    include: { lead: true, contact: true, opportunity: true, user: true },
     take: 200,
   });
   return (
@@ -17,8 +18,8 @@ export default async function ActivitiesPage() {
             <tr>
               <th>Type</th>
               <th>Title</th>
+              <th>Lead</th>
               <th>Contact</th>
-              <th>Opportunity</th>
               <th>Owner</th>
               <th>When</th>
             </tr>
@@ -28,8 +29,24 @@ export default async function ActivitiesPage() {
               <tr key={a.id}>
                 <td><span className="badge">{a.type}</span></td>
                 <td className="font-medium">{a.title}</td>
-                <td>{a.contact ? [a.contact.firstName, a.contact.lastName].filter(Boolean).join(" ") : "—"}</td>
-                <td>{a.opportunity?.name ?? "—"}</td>
+                <td>
+                  {a.lead ? (
+                    <Link href={`/app/leads/${a.lead.id}`} className="text-accent hover:underline">
+                      {a.lead.name}
+                    </Link>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td>
+                  {a.contact ? (
+                    <Link href={`/app/contacts/${a.contact.id}`} className="hover:underline">
+                      {[a.contact.firstName, a.contact.lastName].filter(Boolean).join(" ") || a.contact.email}
+                    </Link>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="text-muted">{a.user?.email ?? "—"}</td>
                 <td className="text-muted">{new Date(a.createdAt).toLocaleString()}</td>
               </tr>

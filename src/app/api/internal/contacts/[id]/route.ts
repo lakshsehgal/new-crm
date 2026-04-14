@@ -9,9 +9,9 @@ const Patch = z.object({
   lastName: z.string().nullable().optional(),
   email: z.string().email().or(z.literal("")).nullable().optional(),
   phone: z.string().nullable().optional(),
-  company: z.string().nullable().optional(),
   title: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  leadId: z.string().nullable().optional(),
   customData: z.record(z.any()).optional(),
 });
 

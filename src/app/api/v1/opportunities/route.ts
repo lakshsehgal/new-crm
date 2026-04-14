@@ -11,8 +11,8 @@ const Body = z.object({
   pipelineId: z.string().optional(),
   stageId: z.string().optional(),
   stageName: z.string().optional(),
-  contactId: z.string().optional(),
-  contactEmail: z.string().email().optional(),
+  leadId: z.string().optional(),
+  leadName: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const opps = await db.opportunity.findMany({
     orderBy: { updatedAt: "desc" },
     take: 100,
-    include: { stage: true, contact: true },
+    include: { stage: true, lead: true },
   });
   return Response.json({ data: opps });
 }
@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
   if (!caller) return unauthorized();
   const data = Body.parse(await req.json());
 
-  // Resolve pipeline + stage
   let pipelineId = data.pipelineId;
   if (!pipelineId) {
     const def = await db.pipeline.findFirst({ where: { isDefault: true } });
@@ -48,13 +47,14 @@ export async function POST(req: NextRequest) {
   }
   if (!stageId) return Response.json({ error: "Invalid stage" }, { status: 400 });
 
-  let contactId = data.contactId;
-  if (!contactId && data.contactEmail) {
-    const existing = await db.contact.findFirst({ where: { email: data.contactEmail } });
-    contactId =
-      existing?.id ??
-      (await db.contact.create({ data: { email: data.contactEmail, ownerId: caller.userId } })).id;
+  // Resolve lead — either by id or upsert by name
+  let leadId = data.leadId;
+  if (!leadId && data.leadName) {
+    const existing = await db.lead.findFirst({ where: { name: data.leadName } });
+    leadId = existing?.id ??
+      (await db.lead.create({ data: { name: data.leadName, ownerId: caller.userId } })).id;
   }
+  if (!leadId) return Response.json({ error: "leadId or leadName required" }, { status: 400 });
 
   const order = await db.opportunity.count({ where: { stageId } });
   const opp = await db.opportunity.create({
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       pipelineId,
       stageId,
       stageOrder: order,
-      contactId: contactId ?? null,
+      leadId,
       ownerId: caller.userId,
     },
   });

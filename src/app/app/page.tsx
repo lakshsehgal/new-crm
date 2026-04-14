@@ -5,9 +5,9 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [contacts, leads, openOpps, wonValue, recentActivities] = await Promise.all([
-    db.contact.count(),
+  const [leads, contacts, openOpps, wonAgg, recent] = await Promise.all([
     db.lead.count(),
+    db.contact.count(),
     db.opportunity.count({ where: { closedAt: null } }),
     db.opportunity.aggregate({
       where: { stage: { isWon: true } },
@@ -16,17 +16,17 @@ export default async function DashboardPage() {
     db.activity.findMany({
       orderBy: { createdAt: "desc" },
       take: 8,
-      include: { contact: true, opportunity: true },
+      include: { lead: true, contact: true, opportunity: true },
     }),
   ]);
 
   const stats = [
-    { label: "Contacts", value: contacts, href: "/app/contacts" },
     { label: "Leads", value: leads, href: "/app/leads" },
+    { label: "Contacts", value: contacts, href: "/app/contacts" },
     { label: "Open opportunities", value: openOpps, href: "/app/opportunities" },
     {
       label: "Won revenue",
-      value: formatMoney(wonValue._sum.value?.toString() ?? 0),
+      value: formatMoney(wonAgg._sum.value?.toString() ?? 0),
       href: "/app/opportunities",
     },
   ];
@@ -39,7 +39,7 @@ export default async function DashboardPage() {
       </header>
       <div className="grid grid-cols-4 gap-3">
         {stats.map((s) => (
-          <Link key={s.label} href={s.href} className="card p-4 hover:shadow-pop transition">
+          <Link key={s.label} href={s.href} className="card p-4 hover:shadow-cardHover transition">
             <div className="label">{s.label}</div>
             <div className="text-2xl font-semibold mt-1">{s.value}</div>
           </Link>
@@ -52,13 +52,18 @@ export default async function DashboardPage() {
           <Link className="btn-ghost" href="/app/activities">View all</Link>
         </div>
         <ul className="divide-y divide-border">
-          {recentActivities.length === 0 && (
-            <li className="p-4 text-sm text-muted">Nothing yet. Log a call, note or task.</li>
+          {recent.length === 0 && (
+            <li className="p-4 text-sm text-muted">Nothing yet. Create a lead to get started.</li>
           )}
-          {recentActivities.map((a) => (
+          {recent.map((a) => (
             <li key={a.id} className="p-3 text-sm flex items-center gap-3">
               <span className="badge">{a.type}</span>
               <span className="truncate">{a.title}</span>
+              {a.lead && (
+                <Link href={`/app/leads/${a.lead.id}`} className="text-accent text-xs hover:underline">
+                  {a.lead.name}
+                </Link>
+              )}
               <span className="ml-auto text-muted text-xs">
                 {new Date(a.createdAt).toLocaleString()}
               </span>

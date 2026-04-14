@@ -10,15 +10,13 @@ const Body = z.object({
   currency: z.string().default("USD").optional(),
   pipelineId: z.string(),
   stageId: z.string(),
-  contactId: z.string().optional().nullable(),
+  leadId: z.string(),
 });
 
 export async function POST(req: NextRequest) {
   const user = await requireUser();
   const data = Body.parse(await req.json());
-  const count = await db.opportunity.count({
-    where: { stageId: data.stageId },
-  });
+  const count = await db.opportunity.count({ where: { stageId: data.stageId } });
   const opp = await db.opportunity.create({
     data: {
       name: data.name,
@@ -27,7 +25,7 @@ export async function POST(req: NextRequest) {
       pipelineId: data.pipelineId,
       stageId: data.stageId,
       stageOrder: count,
-      contactId: data.contactId ?? null,
+      leadId: data.leadId,
       ownerId: user.id,
     },
   });

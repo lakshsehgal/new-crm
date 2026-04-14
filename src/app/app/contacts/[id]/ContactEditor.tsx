@@ -18,7 +18,6 @@ type Contact = {
   lastName: string | null;
   email: string | null;
   phone: string | null;
-  company: string | null;
   title: string | null;
   notes: string | null;
   customData: Record<string, any>;
@@ -43,7 +42,10 @@ export default function ContactEditor({
       headers: { "content-type": "application/json" },
       body: JSON.stringify(form),
     });
-    if (!res.ok) return toast.error("Failed to save");
+    if (!res.ok) {
+      toast.error("Failed to save");
+      return;
+    }
     toast.success("Saved");
     start(() => router.refresh());
   }
@@ -61,7 +63,6 @@ export default function ContactEditor({
         <Field label="Last name" value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} />
         <Field label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
         <Field label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
-        <Field label="Company" value={form.company} onChange={(v) => setForm({ ...form, company: v })} />
         <Field label="Title" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
       </div>
 

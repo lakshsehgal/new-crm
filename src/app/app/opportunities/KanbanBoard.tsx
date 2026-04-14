@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   DndContext,
   DragEndEvent,
@@ -12,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
-import { Mail, Phone, Pencil, Trash2, Headphones } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 
 type Stage = {
   id: string;
@@ -24,6 +25,8 @@ type Stage = {
 };
 type Card = {
   id: string;
+  leadId: string;
+  leadName: string;
   name: string;
   value: string;
   currency: string;
@@ -55,11 +58,9 @@ function pickLogoColor(seed: string): string {
 }
 
 export default function KanbanBoard({
-  pipelineId,
   stages,
   initialCards,
 }: {
-  pipelineId: string;
   stages: Stage[];
   initialCards: Card[];
 }) {
@@ -144,7 +145,7 @@ function StageColumn({ stage, cards }: { stage: Stage; cards: Card[] }) {
           {cards.length} {cards.length === 1 ? "opportunity" : "opportunities"}
         </div>
         <div className="mt-2 flex items-center justify-between text-[11px]">
-          <span className="text-mutedSoft uppercase tracking-wide">Annualized value</span>
+          <span className="text-mutedSoft uppercase tracking-wide">Total value</span>
           <span className="text-ink font-semibold text-[13px]">
             {total > 0 ? formatMoney(total) : "$0"}
           </span>
@@ -156,7 +157,7 @@ function StageColumn({ stage, cards }: { stage: Stage; cards: Card[] }) {
       >
         {cards.length === 0 && (
           <div className="text-center text-[12px] text-mutedSoft py-6">
-            No matching opportunities
+            No opportunities
           </div>
         )}
         {cards.map((c) => (
@@ -174,8 +175,8 @@ function KanbanCard({ card }: { card: Card }) {
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 40 }
     : undefined;
-  const logoColor = pickLogoColor(card.name);
-  const letter = (card.name.trim()[0] ?? "?").toUpperCase();
+  const logoColor = pickLogoColor(card.leadName);
+  const letter = (card.leadName.trim()[0] ?? "?").toUpperCase();
 
   return (
     <div
@@ -183,30 +184,20 @@ function KanbanCard({ card }: { card: Card }) {
       style={style}
       {...listeners}
       {...attributes}
-      className={"opp-card group " + (isDragging ? "opacity-60" : "")}
+      className={"opp-card " + (isDragging ? "opacity-60" : "")}
     >
-      <div className="actions">
-        <button className="size-6 grid place-items-center rounded hover:bg-surface text-muted">
-          <Pencil size={12} />
-        </button>
-        <button className="size-6 grid place-items-center rounded hover:bg-surface text-muted">
-          <Trash2 size={12} />
-        </button>
-        <button className="size-6 grid place-items-center rounded hover:bg-surface text-muted">
-          <Headphones size={12} />
-        </button>
-      </div>
-
-      <div className="title-row pr-14">
+      <div className="title-row">
         <span className={`logo ${logoColor}`}>{letter}</span>
-        <span className="truncate hover:underline">{card.name}</span>
+        <Link href={`/app/leads/${card.leadId}`} className="truncate hover:underline">
+          {card.leadName}
+        </Link>
       </div>
 
       <div className="meta-row">
         <div className="avatar">{card.ownerInitials ?? "–"}</div>
         <div className="value-col">
           <div className="value-amt truncate">
-            {Number(card.value) > 0 ? formatMoney(card.value, card.currency) : ""}
+            {Number(card.value) > 0 ? formatMoney(card.value, card.currency) : card.name}
           </div>
           <div className="value-prob">{card.probability}%</div>
         </div>

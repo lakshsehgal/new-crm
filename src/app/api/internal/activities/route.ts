@@ -9,22 +9,33 @@ const Body = z.object({
   title: z.string().min(1),
   body: z.string().optional(),
   dueAt: z.string().datetime().optional(),
-  contactId: z.string().optional(),
   leadId: z.string().optional(),
+  contactId: z.string().optional(),
   opportunityId: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
   const user = await requireUser();
   const data = Body.parse(await req.json());
+
+  // If contactId is given but no leadId, inherit from contact
+  let leadId = data.leadId;
+  if (!leadId && data.contactId) {
+    const c = await db.contact.findUnique({
+      where: { id: data.contactId },
+      select: { leadId: true },
+    });
+    leadId = c?.leadId ?? undefined;
+  }
+
   const activity = await db.activity.create({
     data: {
       type: data.type,
       title: data.title,
       body: data.body,
       dueAt: data.dueAt ? new Date(data.dueAt) : null,
+      leadId: leadId ?? null,
       contactId: data.contactId,
-      leadId: data.leadId,
       opportunityId: data.opportunityId,
       userId: user.id,
     },

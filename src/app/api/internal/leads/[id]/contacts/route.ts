@@ -4,22 +4,20 @@ import { db } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { z } from "zod";
 
-/**
- * Generic contact create. In the UI, prefer creating contacts scoped to a
- * Lead via /api/internal/leads/:id/contacts — this exists for API parity.
- */
 const Body = z.object({
-  firstName: z.string().optional().nullable(),
-  lastName: z.string().optional().nullable(),
-  email: z.string().email().optional().or(z.literal("")).nullable(),
-  phone: z.string().optional().nullable(),
-  title: z.string().optional().nullable(),
-  leadId: z.string().optional().nullable(),
-  customData: z.record(z.any()).optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().optional(),
+  title: z.string().optional(),
 });
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const user = await requireUser();
+  const { id: leadId } = await params;
   const data = Body.parse(await req.json());
   const contact = await db.contact.create({
     data: {
@@ -28,8 +26,7 @@ export async function POST(req: NextRequest) {
       email: data.email || null,
       phone: data.phone || null,
       title: data.title || null,
-      leadId: data.leadId || null,
-      customData: data.customData ?? {},
+      leadId,
       ownerId: user.id,
     },
   });

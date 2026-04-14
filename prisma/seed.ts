@@ -12,12 +12,11 @@ async function main() {
         isDefault: true,
         stages: {
           create: [
-            { name: "Prospecting", order: 0, probability: 10 },
-            { name: "Qualified",   order: 1, probability: 25 },
-            { name: "Proposal",    order: 2, probability: 50 },
-            { name: "Negotiation", order: 3, probability: 75 },
-            { name: "Won",         order: 4, probability: 100, isWon: true },
-            { name: "Lost",        order: 5, probability: 0,   isLost: true },
+            { name: "Call Booked",   order: 0, probability: 10 },
+            { name: "Proposal Sent", order: 1, probability: 40 },
+            { name: "Negotiation",   order: 2, probability: 70 },
+            { name: "Won",           order: 3, probability: 100, isWon: true },
+            { name: "Lost",          order: 4, probability: 0,   isLost: true },
           ],
         },
       },

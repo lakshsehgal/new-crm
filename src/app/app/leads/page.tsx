@@ -1,80 +1,102 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import NewLeadButton from "@/components/NewLeadButton";
-import ConvertLeadButton from "./ConvertLeadButton";
 import { formatMoney } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeadsPage() {
-  const [leads, pipelines] = await Promise.all([
-    db.lead.findMany({
-      orderBy: { updatedAt: "desc" },
-      include: { contact: true, owner: true },
-      take: 200,
-    }),
-    db.pipeline.findMany({
-      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-      include: { stages: { orderBy: { order: "asc" } } },
-    }),
-  ]);
+const statusStyles: Record<string, string> = {
+  POTENTIAL: "bg-amber-50 text-amber-700 border-amber-200",
+  QUALIFIED: "bg-blue-50 text-blue-700 border-blue-200",
+  CUSTOMER: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  BAD_FIT: "bg-rose-50 text-rose-700 border-rose-200",
+  CHURNED: "bg-gray-100 text-gray-600 border-gray-200",
+};
 
-  const pipelineOpts = pipelines.map((p) => ({
-    id: p.id,
-    name: p.name,
-    stages: p.stages.map((s) => ({ id: s.id, name: s.name })),
-  }));
+export default async function LeadsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const leads = await db.lead.findMany({
+    where: q
+      ? { name: { contains: q, mode: "insensitive" } }
+      : {},
+    orderBy: { updatedAt: "desc" },
+    take: 200,
+    include: {
+      contacts: { select: { id: true } },
+      opportunities: {
+        select: { id: true, value: true, currency: true, stage: { select: { name: true, isWon: true } } },
+      },
+      owner: { select: { email: true } },
+    },
+  });
 
   return (
     <div className="p-6 space-y-4">
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Leads</h1>
-          <p className="text-sm text-muted">{leads.length} open</p>
+          <p className="text-sm text-muted">{leads.length} total</p>
         </div>
-        <NewLeadButton label="New lead" />
+        <div className="flex items-center gap-2">
+          <form>
+            <input
+              name="q"
+              placeholder="Search companies…"
+              defaultValue={q ?? ""}
+              className="input w-72"
+            />
+          </form>
+          <NewLeadButton />
+        </div>
       </header>
+
       <div className="card overflow-hidden">
         <table className="tbl">
           <thead>
             <tr>
               <th>Company</th>
-              <th>Contact</th>
               <th>Status</th>
-              <th>Value</th>
-              <th>Owner</th>
+              <th>Contacts</th>
+              <th>Opportunities</th>
+              <th>Pipeline value</th>
               <th>Updated</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
             {leads.map((l) => {
-              const contactName = l.contact
-                ? [l.contact.firstName, l.contact.lastName].filter(Boolean).join(" ") ||
-                  l.contact.email ||
-                  "—"
-                : "—";
+              const total = l.opportunities.reduce(
+                (s, o) => s + Number(o.value ?? 0),
+                0,
+              );
               return (
                 <tr key={l.id}>
-                  <td className="font-medium">{l.title}</td>
-                  <td>{contactName}</td>
                   <td>
-                    <span className="badge">{l.status}</span>
+                    <Link href={`/app/leads/${l.id}`} className="font-medium text-accent hover:underline">
+                      {l.name}
+                    </Link>
                   </td>
-                  <td>{l.value ? formatMoney(l.value.toString()) : "—"}</td>
-                  <td className="text-muted">{l.owner?.email ?? "—"}</td>
+                  <td>
+                    <span className={`badge ${statusStyles[l.status] ?? ""}`}>
+                      {l.status.replace("_", " ")}
+                    </span>
+                  </td>
+                  <td>{l.contacts.length}</td>
+                  <td>{l.opportunities.length}</td>
+                  <td>{total > 0 ? formatMoney(total) : "—"}</td>
                   <td className="text-muted">
                     {new Date(l.updatedAt).toLocaleDateString()}
-                  </td>
-                  <td className="text-right">
-                    <ConvertLeadButton leadId={l.id} pipelines={pipelineOpts} />
                   </td>
                 </tr>
               );
             })}
             {leads.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center text-muted py-10">
-                  No leads yet.
+                <td colSpan={6} className="text-center text-muted py-10">
+                  No leads yet. Click "New lead" to add your first company.
                 </td>
               </tr>
             )}

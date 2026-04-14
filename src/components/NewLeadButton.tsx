@@ -3,16 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Upload, Sparkles, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 
 type Props = {
-  /** Button label override */
   label?: string;
-  /** Button visual variant */
-  variant?: "primary" | "icon";
 };
 
-export default function NewLeadButton({ label = "New lead", variant = "primary" }: Props) {
+export default function NewLeadButton({ label = "New lead" }: Props) {
   const [open, setOpen] = useState(false);
   const [company, setCompany] = useState("");
   const [contact, setContact] = useState("");
@@ -33,7 +30,7 @@ export default function NewLeadButton({ label = "New lead", variant = "primary" 
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        companyName: company.trim(),
+        name: company.trim(),
         contactName: contact.trim() || undefined,
       }),
     });
@@ -41,27 +38,20 @@ export default function NewLeadButton({ label = "New lead", variant = "primary" 
       toast.error("Failed to create lead");
       return;
     }
+    const j = (await res.json()) as { lead: { id: string } };
     toast.success("Lead created");
     setOpen(false);
     reset();
+    // Navigate to the new lead detail page
+    router.push(`/app/leads/${j.lead.id}`);
     start(() => router.refresh());
   }
 
   return (
     <>
-      {variant === "icon" ? (
-        <button
-          className="size-8 rounded-md border border-border bg-white grid place-items-center text-muted hover:bg-surface"
-          onClick={() => setOpen(true)}
-          title="New lead"
-        >
-          <Plus size={14} />
-        </button>
-      ) : (
-        <button className="btn-primary" onClick={() => setOpen(true)}>
-          <Plus size={14} /> {label}
-        </button>
-      )}
+      <button className="btn-primary" onClick={() => setOpen(true)}>
+        <Plus size={14} /> {label}
+      </button>
 
       {open && (
         <div
@@ -69,11 +59,11 @@ export default function NewLeadButton({ label = "New lead", variant = "primary" 
           onClick={() => setOpen(false)}
         >
           <div
-            className="card w-full max-w-[640px] p-6 shadow-pop"
+            className="card w-full max-w-[560px] p-6 shadow-pop"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">New Lead</h2>
+              <h2 className="text-lg font-semibold">New lead</h2>
               <button
                 className="size-7 grid place-items-center rounded-md text-muted hover:bg-surface"
                 onClick={() => setOpen(false)}
@@ -81,58 +71,36 @@ export default function NewLeadButton({ label = "New lead", variant = "primary" 
                 <X size={16} />
               </button>
             </div>
+            <p className="text-[13px] text-muted mt-1">
+              A lead represents a company. You can add more contacts and opportunities to it later.
+            </p>
 
-            <div className="grid grid-cols-2 gap-4 mt-5">
+            <div className="grid grid-cols-2 gap-4 mt-4">
               <label className="block">
-                <span className="label">Company Name</span>
+                <span className="label">Company name</span>
                 <input
                   className="input mt-1.5"
                   placeholder="e.g. Close"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") create();
+                  }}
                   autoFocus
                 />
               </label>
               <label className="block">
-                <span className="label">Contact Name</span>
+                <span className="label">Primary contact (optional)</span>
                 <input
                   className="input mt-1.5"
                   placeholder="e.g. Steli Efti"
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") create();
+                  }}
                 />
               </label>
-            </div>
-
-            <div className="flex items-center gap-3 my-5">
-              <div className="h-px bg-border flex-1" />
-              <span className="text-xs text-mutedSoft uppercase tracking-wide">or</span>
-              <div className="h-px bg-border flex-1" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface"
-                onClick={() =>
-                  toast("Bulk import is coming soon. Use the REST API for now.", {
-                    description: "POST /api/v1/contacts with your API key.",
-                  })
-                }
-              >
-                <Upload size={14} /> Import leads & data
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface"
-                onClick={() =>
-                  toast("No duplicates detected.", {
-                    description: "We'll suggest matches once you have contacts.",
-                  })
-                }
-              >
-                <Sparkles size={14} /> Review potential contacts
-              </button>
             </div>
 
             <div className="flex justify-end gap-2 mt-6">
@@ -142,7 +110,7 @@ export default function NewLeadButton({ label = "New lead", variant = "primary" 
                 disabled={pending || !company.trim()}
                 onClick={create}
               >
-                {pending ? "Creating…" : "Create Lead"}
+                {pending ? "Creating…" : "Create lead"}
               </button>
             </div>
           </div>
