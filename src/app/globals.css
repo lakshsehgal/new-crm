@@ -6,37 +6,54 @@
   color-scheme: light;
 }
 
-html,
-body {
-  background: theme("colors.bg");
+html, body {
+  background: theme("colors.surface");
   color: theme("colors.ink");
+  font-feature-settings: "cv11", "ss01";
 }
 
-/* Compact table */
-.tbl {
-  @apply w-full text-sm;
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: theme("colors.border") transparent;
 }
-.tbl th {
-  @apply px-3 py-2 text-left font-medium text-muted border-b border-border sticky top-0 bg-surface/95 backdrop-blur;
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: theme("colors.border");
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
-.tbl td {
-  @apply px-3 py-2 border-b border-border;
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* ----- Sidebar (dark) ----- */
+.sidebar { @apply bg-sidebar-bg text-sidebar-ink; }
+.sidebar .nav-item {
+  @apply flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] text-sidebar-ink/90 hover:bg-sidebar-hover cursor-pointer select-none;
 }
-.tbl tr:hover td {
-  @apply bg-accentSoft/40;
+.sidebar .nav-item.active {
+  @apply bg-sidebar-hover text-white;
+}
+.sidebar .nav-sub {
+  @apply flex items-center gap-2 pl-9 pr-3 py-1 text-[12.5px] text-sidebar-muted hover:text-sidebar-ink cursor-pointer;
+}
+.sidebar .nav-sub.active { @apply text-white; }
+.sidebar .section-label {
+  @apply px-3 pt-4 pb-1 text-[10.5px] tracking-wider uppercase text-sidebar-muted font-medium;
 }
 
+/* ----- Light content components ----- */
 .card {
   @apply bg-white border border-border rounded-xl shadow-card;
 }
 
 .btn {
-  @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium border border-border
-         hover:bg-surface active:bg-accentSoft transition-colors;
+  @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium
+         bg-white border border-border text-ink hover:bg-surface transition-colors;
 }
 .btn-primary {
   @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium
-         bg-accent text-white hover:bg-blue-700 active:bg-blue-800 transition-colors;
+         bg-accent text-white hover:bg-blue-700 transition-colors;
 }
 .btn-ghost {
   @apply inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted hover:bg-surface transition-colors;
@@ -51,17 +68,86 @@ body {
   @apply text-xs font-medium text-muted uppercase tracking-wide;
 }
 
-.badge {
-  @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium bg-surface border border-border text-ink;
+.pill {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-border bg-white text-ink
+         px-3 py-1 text-[13px] font-medium hover:bg-surface transition-colors;
+}
+.pill-muted {
+  @apply inline-flex items-center gap-1 text-[13px] text-muted;
 }
 
-/* Kanban */
+.badge {
+  @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium bg-surface border border-border;
+}
+
+/* Compact table */
+.tbl { @apply w-full text-sm; }
+.tbl th {
+  @apply px-3 py-2 text-left font-medium text-muted border-b border-border sticky top-0 bg-white/95 backdrop-blur;
+}
+.tbl td { @apply px-3 py-2 border-b border-border; }
+.tbl tr:hover td { @apply bg-accentSoft/30; }
+
+/* ----- Kanban (Close-style) ----- */
 .kanban {
-  @apply flex gap-3 overflow-x-auto pb-4;
+  @apply flex gap-0 overflow-x-auto overflow-y-hidden h-full;
 }
 .kanban-col {
-  @apply min-w-[280px] w-[280px] flex-shrink-0 bg-surface/70 rounded-xl border border-border flex flex-col;
+  @apply min-w-[280px] w-[280px] flex-shrink-0 flex flex-col border-r border-border bg-surface/50;
 }
-.kanban-card {
-  @apply bg-white border border-border rounded-lg p-2.5 shadow-card cursor-grab active:cursor-grabbing;
+.kanban-col:last-child { @apply border-r-0; }
+
+.kanban-col-head {
+  @apply px-3 pt-4 pb-3 border-b border-border bg-surface sticky top-0 z-10;
+}
+.stage-chip {
+  @apply inline-block text-[10.5px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded;
+  color: #6b4f00;
+}
+.stage-chip.s-yellow   { background: #fef3c7; color: #92610a; }
+.stage-chip.s-orange   { background: #ffedd5; color: #9a3412; }
+.stage-chip.s-amber    { background: #fef3c7; color: #854d0e; }
+.stage-chip.s-blue     { background: #dbeafe; color: #1e40af; }
+.stage-chip.s-purple   { background: #ede9fe; color: #5b21b6; }
+.stage-chip.s-teal     { background: #ccfbf1; color: #115e59; }
+.stage-chip.s-emerald  { background: #d1fae5; color: #065f46; }
+.stage-chip.s-rose     { background: #ffe4e6; color: #9f1239; }
+.stage-chip.s-red      { background: #fee2e2; color: #991b1b; }
+
+.kanban-col-body {
+  @apply flex-1 p-2 space-y-2 overflow-y-auto;
+}
+
+/* Opportunity card */
+.opp-card {
+  @apply bg-white border border-border rounded-lg px-3 py-2.5 shadow-card
+         hover:shadow-cardHover hover:border-accent/30 transition
+         cursor-grab active:cursor-grabbing relative;
+}
+.opp-card .title-row {
+  @apply flex items-center gap-1.5 text-[13px] font-semibold text-accent;
+}
+.opp-card .title-row .logo {
+  @apply size-[18px] rounded grid place-items-center text-[10px] font-bold text-white flex-shrink-0;
+}
+.opp-card .meta-row {
+  @apply flex items-center gap-2 mt-2;
+}
+.opp-card .avatar {
+  @apply size-5 rounded-full bg-accentSoft text-accent text-[9px] font-semibold grid place-items-center flex-shrink-0;
+}
+.opp-card .value-col {
+  @apply flex-1 min-w-0 leading-tight;
+}
+.opp-card .value-amt {
+  @apply text-[12.5px] font-semibold text-ink;
+}
+.opp-card .value-prob {
+  @apply text-[11px] text-muted;
+}
+.opp-card .footer-row {
+  @apply flex items-center gap-2 mt-2 pt-2 border-t border-border/70 text-[12px] text-muted;
+}
+.opp-card .actions {
+  @apply absolute right-2 top-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity;
 }

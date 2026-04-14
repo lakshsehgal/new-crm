@@ -5,33 +5,64 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Light content palette
         bg: "#ffffff",
-        surface: "#fafafa",
-        border: "#ececec",
-        ink: "#111827",
+        surface: "#f7f8fa",
+        border: "#e6e8ec",
+        ink: "#0f1419",
         muted: "#6b7280",
+        mutedSoft: "#9ca3af",
         accent: "#2563eb",
         accentSoft: "#eff6ff",
         success: "#059669",
         warn: "#d97706",
         danger: "#dc2626",
+
+        // Dark sidebar palette (Close-style)
+        sidebar: {
+          bg: "#111214",
+          surface: "#191a1d",
+          border: "#26272b",
+          ink: "#e6e7e9",
+          muted: "#8b8d92",
+          accent: "#3b82f6",
+          hover: "#1f2024",
+        },
+
+        // Stage badges
+        stage: {
+          yellow: "#f3c94c",
+          orange: "#f59e0b",
+          amber: "#fb923c",
+          blue: "#60a5fa",
+          purple: "#a78bfa",
+          rose: "#fb7185",
+          teal: "#2dd4bf",
+          emerald: "#34d399",
+          red: "#f87171",
+        },
       },
       boxShadow: {
-        card: "0 1px 2px rgba(17,24,39,0.04), 0 1px 1px rgba(17,24,39,0.03)",
-        pop: "0 8px 24px rgba(17,24,39,0.08)",
+        card: "0 1px 2px rgba(15,20,25,0.04), 0 1px 1px rgba(15,20,25,0.03)",
+        cardHover: "0 4px 12px rgba(15,20,25,0.08)",
+        pop: "0 8px 24px rgba(15,20,25,0.12)",
       },
       fontFamily: {
         sans: [
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
-          "Segoe UI",
           "Inter",
+          "Segoe UI",
           "sans-serif",
         ],
       },
       borderRadius: {
-        xl: "0.875rem",
+        xl: "0.75rem",
+        "2xl": "1rem",
+      },
+      fontSize: {
+        "2xs": ["0.6875rem", "0.9rem"],
       },
     },
   },

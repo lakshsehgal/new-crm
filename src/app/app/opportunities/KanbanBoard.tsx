@@ -4,18 +4,24 @@ import { useMemo, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
-  DragOverEvent,
   PointerSensor,
   useSensor,
   useSensors,
   useDroppable,
+  useDraggable,
 } from "@dnd-kit/core";
-import { useDraggable } from "@dnd-kit/core";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
-import NewOppButton from "./NewOppButton";
+import { Mail, Phone, Pencil, Trash2, Headphones } from "lucide-react";
 
-type Stage = { id: string; name: string; probability: number; isWon: boolean; isLost: boolean };
+type Stage = {
+  id: string;
+  name: string;
+  probability: number;
+  isWon: boolean;
+  isLost: boolean;
+  colorIdx: number;
+};
 type Card = {
   id: string;
   name: string;
@@ -23,8 +29,30 @@ type Card = {
   currency: string;
   stageId: string;
   stageOrder: number;
+  probability: number;
   contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  ownerInitials: string | null;
 };
+
+const STAGE_COLORS = ["s-yellow", "s-orange", "s-amber", "s-blue", "s-purple", "s-teal", "s-rose"];
+const LOGO_COLORS = [
+  "bg-emerald-500", "bg-blue-500", "bg-amber-500", "bg-rose-500",
+  "bg-purple-500", "bg-teal-500", "bg-orange-500", "bg-indigo-500",
+];
+
+function stageClass(stage: Stage): string {
+  if (stage.isWon) return "s-emerald";
+  if (stage.isLost) return "s-red";
+  return STAGE_COLORS[stage.colorIdx % STAGE_COLORS.length];
+}
+
+function pickLogoColor(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return LOGO_COLORS[h % LOGO_COLORS.length];
+}
 
 export default function KanbanBoard({
   pipelineId,
@@ -57,10 +85,9 @@ export default function KanbanBoard({
   }
 
   function onDragEnd(e: DragEndEvent) {
-    const activeId = String(e.active.id);
+    const activeId = String(e.active.id).replace(/^card:/, "");
     const overId = e.over?.id ? String(e.over.id) : null;
     if (!overId) return;
-
     const [overKind, overIdent] = overId.split(":");
     const active = cards.find((c) => c.id === activeId);
     if (!active) return;
@@ -90,14 +117,15 @@ export default function KanbanBoard({
   }
 
   return (
-    <div>
-      <div className="flex justify-end mb-3">
-        <NewOppButton pipelineId={pipelineId} stages={stages} />
-      </div>
+    <div className="flex-1 overflow-hidden">
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        <div className="kanban">
+        <div className="kanban h-full">
           {stages.map((stage) => (
-            <StageColumn key={stage.id} stage={stage} cards={byStage.get(stage.id) ?? []} />
+            <StageColumn
+              key={stage.id}
+              stage={stage}
+              cards={byStage.get(stage.id) ?? []}
+            />
           ))}
         </div>
       </DndContext>
@@ -110,22 +138,30 @@ function StageColumn({ stage, cards }: { stage: Stage; cards: Card[] }) {
   const total = cards.reduce((sum, c) => sum + Number(c.value || 0), 0);
   return (
     <div className="kanban-col">
-      <div className="px-3 py-2 border-b border-border flex items-center justify-between sticky top-0 bg-surface/80 backdrop-blur">
-        <div>
-          <div className="text-sm font-medium">
-            {stage.name}
-            <span className="ml-2 text-xs text-muted">{cards.length}</span>
-          </div>
-          <div className="text-xs text-muted">{formatMoney(total)}</div>
+      <div className="kanban-col-head">
+        <div className={`stage-chip ${stageClass(stage)}`}>{stage.name}</div>
+        <div className="mt-1.5 text-[12px] text-muted">
+          {cards.length} {cards.length === 1 ? "opportunity" : "opportunities"}
         </div>
-        {stage.isWon && <span className="badge bg-emerald-50 text-emerald-700 border-emerald-200">Won</span>}
-        {stage.isLost && <span className="badge bg-red-50 text-red-700 border-red-200">Lost</span>}
+        <div className="mt-2 flex items-center justify-between text-[11px]">
+          <span className="text-mutedSoft uppercase tracking-wide">Annualized value</span>
+          <span className="text-ink font-semibold text-[13px]">
+            {total > 0 ? formatMoney(total) : "$0"}
+          </span>
+        </div>
       </div>
       <div
         ref={setNodeRef}
-        className={"flex-1 p-2 space-y-2 min-h-[120px] " + (isOver ? "bg-accentSoft/40" : "")}
+        className={"kanban-col-body " + (isOver ? "bg-accentSoft/40" : "")}
       >
-        {cards.map((c) => <KanbanCard key={c.id} card={c} />)}
+        {cards.length === 0 && (
+          <div className="text-center text-[12px] text-mutedSoft py-6">
+            No matching opportunities
+          </div>
+        )}
+        {cards.map((c) => (
+          <KanbanCard key={c.id} card={c} />
+        ))}
       </div>
     </div>
   );
@@ -136,21 +172,56 @@ function KanbanCard({ card }: { card: Card }) {
     id: `card:${card.id}`,
   });
   const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 40 }
     : undefined;
+  const logoColor = pickLogoColor(card.name);
+  const letter = (card.name.trim()[0] ?? "?").toUpperCase();
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
-      className={"kanban-card " + (isDragging ? "opacity-60" : "")}
+      className={"opp-card group " + (isDragging ? "opacity-60" : "")}
     >
-      <div className="text-sm font-medium truncate">{card.name}</div>
-      <div className="flex items-center justify-between mt-1">
-        <div className="text-xs text-muted truncate">{card.contactName ?? "—"}</div>
-        <div className="text-xs font-medium">{formatMoney(card.value, card.currency)}</div>
+      <div className="actions">
+        <button className="size-6 grid place-items-center rounded hover:bg-surface text-muted">
+          <Pencil size={12} />
+        </button>
+        <button className="size-6 grid place-items-center rounded hover:bg-surface text-muted">
+          <Trash2 size={12} />
+        </button>
+        <button className="size-6 grid place-items-center rounded hover:bg-surface text-muted">
+          <Headphones size={12} />
+        </button>
       </div>
+
+      <div className="title-row pr-14">
+        <span className={`logo ${logoColor}`}>{letter}</span>
+        <span className="truncate hover:underline">{card.name}</span>
+      </div>
+
+      <div className="meta-row">
+        <div className="avatar">{card.ownerInitials ?? "–"}</div>
+        <div className="value-col">
+          <div className="value-amt truncate">
+            {Number(card.value) > 0 ? formatMoney(card.value, card.currency) : ""}
+          </div>
+          <div className="value-prob">{card.probability}%</div>
+        </div>
+      </div>
+
+      {card.contactName && (
+        <div className="footer-row">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span className="truncate flex-1 text-ink/80">{card.contactName}</span>
+          <div className="flex items-center gap-1 text-muted">
+            {card.contactEmail && <Mail size={11} />}
+            {card.contactPhone && <Phone size={11} />}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
