@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { initials } from "@/lib/utils";
-import NewContactButton from "./NewContactButton";
+import NewLeadButton from "@/components/NewLeadButton";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +25,10 @@ export default async function ContactsPage({
     where,
     orderBy: { updatedAt: "desc" },
     take: 200,
+    include: {
+      leads: { select: { id: true, status: true } },
+      opportunities: { select: { id: true, name: true, stage: { select: { name: true } } } },
+    },
   });
 
   return (
@@ -43,7 +47,7 @@ export default async function ContactsPage({
               className="input w-72"
             />
           </form>
-          <NewContactButton />
+          <NewLeadButton label="New lead" />
         </div>
       </header>
 
@@ -52,15 +56,18 @@ export default async function ContactsPage({
           <thead>
             <tr>
               <th>Name</th>
-              <th>Email</th>
               <th>Company</th>
-              <th>Title</th>
+              <th>Email</th>
+              <th>Attached to</th>
               <th>Updated</th>
             </tr>
           </thead>
           <tbody>
             {contacts.map((c) => {
-              const name = [c.firstName, c.lastName].filter(Boolean).join(" ") || "(no name)";
+              const name =
+                [c.firstName, c.lastName].filter(Boolean).join(" ") || "(no name)";
+              const opp = c.opportunities[0];
+              const lead = c.leads[0];
               return (
                 <tr key={c.id}>
                   <td>
@@ -71,17 +78,31 @@ export default async function ContactsPage({
                       <span className="font-medium">{name}</span>
                     </Link>
                   </td>
-                  <td className="text-muted">{c.email ?? "—"}</td>
                   <td>{c.company ?? "—"}</td>
-                  <td>{c.title ?? "—"}</td>
-                  <td className="text-muted">{new Date(c.updatedAt).toLocaleDateString()}</td>
+                  <td className="text-muted">{c.email ?? "—"}</td>
+                  <td>
+                    {opp ? (
+                      <span className="badge bg-accentSoft text-accent border-accent/20">
+                        Opportunity · {opp.stage.name}
+                      </span>
+                    ) : lead ? (
+                      <span className="badge bg-amber-50 text-amber-700 border-amber-200">
+                        Lead · {lead.status}
+                      </span>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="text-muted">
+                    {new Date(c.updatedAt).toLocaleDateString()}
+                  </td>
                 </tr>
               );
             })}
             {contacts.length === 0 && (
               <tr>
                 <td colSpan={5} className="text-center text-muted py-10">
-                  No contacts yet. Add one to get started.
+                  No contacts yet. Click "New lead" to create the first one.
                 </td>
               </tr>
             )}
