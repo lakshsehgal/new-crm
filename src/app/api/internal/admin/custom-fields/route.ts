@@ -4,21 +4,41 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 
 const Body = z.object({
-  entity: z.enum(["CONTACT", "LEAD", "OPPORTUNITY"]),
-  key: z.string().min(1).regex(/^[a-z0-9_]+$/, "lowercase, numbers, underscores"),
   label: z.string().min(1),
   type: z.enum(["TEXT", "NUMBER", "DATE", "BOOLEAN", "SELECT", "URL"]),
   required: z.boolean().optional(),
   options: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
 });
 
+function slugify(input: string): string {
+  return (
+    input
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "")
+      .slice(0, 60) || "field"
+  );
+}
+
+async function uniqueKey(base: string): Promise<string> {
+  let key = base;
+  let i = 1;
+  // Ensure uniqueness in a loop — tiny workspace, cheap query
+  while (await db.customField.findUnique({ where: { key } })) {
+    i += 1;
+    key = `${base}_${i}`;
+  }
+  return key;
+}
+
 export async function POST(req: NextRequest) {
   await requireAdmin();
   const data = Body.parse(await req.json());
+  const key = await uniqueKey(slugify(data.label));
   const field = await db.customField.create({
     data: {
-      entity: data.entity,
-      key: data.key,
+      key,
       label: data.label,
       type: data.type,
       required: !!data.required,

@@ -45,12 +45,6 @@ enum CustomFieldType {
   URL
 }
 
-enum CustomFieldEntity {
-  CONTACT
-  LEAD
-  OPPORTUNITY
-}
-
 enum WebhookEvent {
   CONTACT_CREATED
   CONTACT_UPDATED
@@ -247,19 +241,19 @@ model Activity {
   @@index([opportunityId])
 }
 
+/// A custom field is a workspace-wide definition that applies to every entity
+/// (Lead, Contact, Opportunity). Each entity stores its value inside its own
+/// customData JSON blob keyed by CustomField.key.
 model CustomField {
-  id        String            @id @default(cuid())
-  entity    CustomFieldEntity
-  key       String
+  id        String          @id @default(cuid())
+  key       String          @unique
   label     String
   type      CustomFieldType
-  required  Boolean           @default(false)
+  required  Boolean         @default(false)
   options   Json?
-  order     Int               @default(0)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-
-  @@unique([entity, key])
+  order     Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 }
 
 model ApiKey {

@@ -6,17 +6,19 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminCustomFieldsPage() {
   await requireAdmin();
-  const fields = await db.customField.findMany({ orderBy: [{ entity: "asc" }, { order: "asc" }] });
+  const fields = await db.customField.findMany({ orderBy: { order: "asc" } });
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 space-y-4 fade-in">
       <header>
         <h1 className="text-xl font-semibold">Custom fields</h1>
-        <p className="text-sm text-muted">Add fields to contacts, leads, or opportunities.</p>
+        <p className="text-sm text-muted">
+          Fields you add here appear on every Lead, Contact, and Opportunity.
+          Each record stores its own value for a field.
+        </p>
       </header>
       <CustomFieldsUI
         fields={fields.map((f) => ({
           id: f.id,
-          entity: f.entity,
           key: f.key,
           label: f.label,
           type: f.type,

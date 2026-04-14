@@ -6,7 +6,8 @@ import LeadHeader from "./LeadHeader";
 import LeadActivityFeed from "./LeadActivityFeed";
 import AddContactButton from "./AddContactButton";
 import AddOppButton from "./AddOppButton";
-import { Mail, Phone, MoreHorizontal, Plus } from "lucide-react";
+import CustomFieldsEditor from "@/components/CustomFieldsEditor";
+import { Mail, Phone } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,13 @@ export default async function LeadDetailPage({
   });
   if (!lead) notFound();
 
-  const pipelines = await db.pipeline.findMany({
-    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-    include: { stages: { orderBy: { order: "asc" } } },
-  });
+  const [pipelines, customFields] = await Promise.all([
+    db.pipeline.findMany({
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+      include: { stages: { orderBy: { order: "asc" } } },
+    }),
+    db.customField.findMany({ orderBy: { order: "asc" } }),
+  ]);
 
   return (
     <div className="flex flex-col h-screen">
@@ -115,6 +119,20 @@ export default async function LeadDetailPage({
                 ))}
               </ul>
             )}
+          </Section>
+
+          {/* Custom fields */}
+          <Section
+            title="Custom fields"
+            count={customFields.length}
+            defaultOpen={customFields.length > 0}
+          >
+            <CustomFieldsEditor
+              entityKind="lead"
+              entityId={lead.id}
+              fields={customFields as any}
+              initialData={lead.customData as any}
+            />
           </Section>
 
           {/* Contacts */}

@@ -31,7 +31,6 @@ export default async function ContactDetailPage({
   if (!contact) notFound();
 
   const customFields = await db.customField.findMany({
-    where: { entity: "CONTACT" },
     orderBy: { order: "asc" },
   });
 
