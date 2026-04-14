@@ -22,7 +22,7 @@ export default function EmailTemplatesUI({
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  async function save(t: Omit<Template, "id"> & { id?: string }) {
+  async function save(t: Omit<Template, "id"> & { id?: string }): Promise<void> {
     const method = t.id ? "PATCH" : "POST";
     const url = t.id
       ? `/api/internal/email-templates/${t.id}`
@@ -32,7 +32,10 @@ export default function EmailTemplatesUI({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: t.name, subject: t.subject, body: t.body }),
     });
-    if (!res.ok) return toast.error("Failed to save template");
+    if (!res.ok) {
+      toast.error("Failed to save template");
+      return;
+    }
     const saved = (await res.json()) as Template;
     setTemplates((prev) => {
       const i = prev.findIndex((x) => x.id === saved.id);
@@ -48,12 +51,15 @@ export default function EmailTemplatesUI({
     start(() => router.refresh());
   }
 
-  async function remove(id: string) {
+  async function remove(id: string): Promise<void> {
     if (!confirm("Delete this template?")) return;
     const res = await fetch(`/api/internal/email-templates/${id}`, {
       method: "DELETE",
     });
-    if (!res.ok) return toast.error("Failed");
+    if (!res.ok) {
+      toast.error("Failed");
+      return;
+    }
     setTemplates((prev) => prev.filter((t) => t.id !== id));
     toast.success("Deleted");
     start(() => router.refresh());
