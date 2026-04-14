@@ -9,7 +9,10 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Read from NEW_CRM_DATABASE_URL so this CRM's connection string is isolated
+  // from any other Vercel Postgres / Neon integration that may own DATABASE_URL
+  // in the same project.
+  url      = env("NEW_CRM_DATABASE_URL")
 }
 
 enum Role {
