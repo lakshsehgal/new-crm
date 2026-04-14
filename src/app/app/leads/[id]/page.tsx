@@ -297,13 +297,11 @@ function Section({
 
 function IconBtn({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      className="size-5 grid place-items-center rounded text-muted hover:bg-surface hover:text-ink"
+    <span
+      className="size-5 grid place-items-center rounded text-muted hover:bg-surface hover:text-ink cursor-pointer"
       title={title}
-      onClick={(e) => e.preventDefault()}
     >
       {children}
-    </button>
+    </span>
   );
 }
