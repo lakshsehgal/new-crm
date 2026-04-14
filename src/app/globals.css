@@ -45,15 +45,67 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
 .pop-in     { animation: pop-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1); }
 .slide-down { animation: slide-down 150ms ease-out; }
 
-/* ----- Sidebar (dark) ----- */
-.sidebar { @apply bg-sidebar-bg text-sidebar-ink; }
-.sidebar .nav-item {
-  @apply flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] text-sidebar-ink/90 cursor-pointer select-none;
+/* ----- Sidebar (dark, Close-style) ----- */
+.sidebar {
+  @apply bg-sidebar-bg text-sidebar-ink;
+  font-size: 13px;
 }
-.sidebar .nav-item:hover { @apply bg-sidebar-hover; }
-.sidebar .nav-item.active { @apply bg-sidebar-hover text-white; }
+.sidebar .profile-row {
+  @apply flex items-center gap-2 px-2.5 py-2 rounded-md cursor-pointer;
+  transition: background-color 120ms ease;
+}
+.sidebar .profile-row:hover { @apply bg-sidebar-hover; }
+
+.sidebar .nav-item {
+  @apply flex items-center gap-2.5 px-2.5 py-[6px] rounded-md text-[13px] text-sidebar-ink/85 cursor-pointer select-none relative;
+  transition: background-color 100ms ease, color 100ms ease;
+}
+.sidebar .nav-item:hover { @apply bg-sidebar-hover text-white; }
+.sidebar .nav-item.active {
+  background: theme("colors.sidebar.active");
+  color: #ffffff;
+}
+.sidebar .nav-item .ico {
+  @apply text-sidebar-muted;
+  transition: color 100ms ease;
+}
+.sidebar .nav-item:hover .ico,
+.sidebar .nav-item.active .ico { @apply text-sidebar-ink; }
+
+.sidebar .nav-sub {
+  @apply flex items-center gap-2 pl-8 pr-2.5 py-[4px] text-[12.5px] text-sidebar-muted cursor-pointer rounded-md;
+  transition: color 100ms ease;
+}
+.sidebar .nav-sub::before {
+  content: "";
+  @apply size-1 rounded-full bg-sidebar-mutedSoft;
+  transition: background-color 100ms ease;
+}
+.sidebar .nav-sub:hover { color: #ffffff; }
+.sidebar .nav-sub:hover::before { background: #ffffff; }
+.sidebar .nav-sub.active { color: #ffffff; }
+.sidebar .nav-sub.active::before { background: theme("colors.sidebar.green"); }
+
 .sidebar .section-label {
-  @apply px-3 pt-4 pb-1 text-[10.5px] tracking-wider uppercase text-sidebar-muted font-medium;
+  @apply px-2.5 pt-5 pb-1.5 text-[10.5px] tracking-[0.08em] uppercase text-sidebar-mutedSoft font-semibold flex items-center justify-between;
+}
+
+.sidebar .footer-link {
+  @apply flex items-center gap-2.5 px-2.5 py-[6px] rounded-md text-[13px] text-sidebar-muted cursor-pointer;
+  transition: background-color 100ms ease, color 100ms ease;
+}
+.sidebar .footer-link:hover { @apply bg-sidebar-hover text-white; }
+
+.sidebar .collapse-bar {
+  @apply border-t border-sidebar-border px-3 py-2 flex items-center justify-between text-[12px] text-sidebar-mutedSoft;
+}
+.sidebar .collapse-bar button:hover { color: #ffffff; }
+
+/* Inbox badge — subtle green pill like Close */
+.sidebar .unread {
+  @apply ml-auto text-[10.5px] font-semibold rounded-[4px] px-1.5 py-[1px];
+  background: rgba(74, 222, 128, 0.18);
+  color: theme("colors.sidebar.green");
 }
 
 /* ----- Light content ----- */

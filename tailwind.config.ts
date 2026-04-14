@@ -20,13 +20,16 @@ export default {
 
         // Dark sidebar palette (Close-style)
         sidebar: {
-          bg: "#111214",
-          surface: "#191a1d",
-          border: "#26272b",
-          ink: "#e6e7e9",
-          muted: "#8b8d92",
+          bg: "#0a0b0d",
+          surface: "#131417",
+          border: "#1f2126",
+          ink: "#e7e8ea",
+          muted: "#7c7f87",
+          mutedSoft: "#5a5c63",
           accent: "#3b82f6",
-          hover: "#1f2024",
+          hover: "#17181c",
+          active: "#23252b",
+          green: "#4ade80",
         },
 
         // Stage badges
