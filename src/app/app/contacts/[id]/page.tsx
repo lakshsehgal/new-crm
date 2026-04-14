@@ -25,10 +25,26 @@ export default async function ContactDetailPage({
         },
       },
       activities: { orderBy: { createdAt: "desc" }, take: 50 },
-      emails: { orderBy: { sentAt: "desc" }, take: 50 },
     },
   });
   if (!contact) notFound();
+
+  // All emails to/from this contact (by id OR email address)
+  const emails = await db.email.findMany({
+    where: {
+      OR: [
+        { contactId: contact.id },
+        ...(contact.email
+          ? [
+              { fromEmail: contact.email },
+              { toEmails: { has: contact.email } },
+            ]
+          : []),
+      ],
+    },
+    orderBy: { sentAt: "desc" },
+    take: 50,
+  });
 
   const customFields = await db.customField.findMany({
     orderBy: { order: "asc" },
@@ -67,9 +83,9 @@ export default async function ContactDetailPage({
         <section className="card">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <h2 className="font-medium">Emails</h2>
-            <span className="text-xs text-muted">{contact.emails.length}</span>
+            <span className="text-xs text-muted">{emails.length}</span>
           </div>
-          <EmailThread contactId={contact.id} emails={contact.emails as any} />
+          <EmailThread contactId={contact.id} emails={emails as any} />
         </section>
 
         <section className="card">

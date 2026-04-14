@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Link from "next/link";
 import {
   StickyNote,
   Mail,
@@ -192,7 +193,10 @@ function ActivityRow({ activity: a }: { activity: Activity & { kind: "activity" 
 function EmailRow({ email }: { email: Email & { kind: "email" } }) {
   const outbound = email.direction === "outbound";
   return (
-    <div className="flex gap-3">
+    <Link
+      href={`/app/inbox/${email.id}`}
+      className="flex gap-3 -mx-2 px-2 py-1 rounded hover:bg-surface/60 transition-colors"
+    >
       <div
         className={
           "size-6 rounded-md grid place-items-center flex-shrink-0 mt-0.5 " +
@@ -221,7 +225,7 @@ function EmailRow({ email }: { email: Email & { kind: "email" } }) {
           </p>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
 

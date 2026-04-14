@@ -22,7 +22,6 @@ export async function getGmailClient(userId: string): Promise<gmail_v1.Gmail | n
     expiry_date: account.expires_at ? account.expires_at * 1000 : undefined,
   });
 
-  // Persist refreshed tokens
   oauth2.on("tokens", async (tokens) => {
     await db.account.update({
       where: { id: account.id },
@@ -72,7 +71,6 @@ function extractBody(payload?: gmail_v1.Schema$MessagePart): { text: string; htm
 
 /**
  * Sync the most recent inbox messages for a user, upserting them by gmailId.
- * Keeps logic simple (polling-based) so it works on Vercel cron without Pub/Sub.
  */
 export async function syncInbox(userId: string, max = 25): Promise<number> {
   const gmail = await getGmailClient(userId);
@@ -136,26 +134,64 @@ export async function syncInbox(userId: string, max = 25): Promise<number> {
 
 /**
  * Send an email through the authenticated user's Gmail account.
+ * Supports threading: pass threadId + inReplyToMessageId to attach to an
+ * existing Gmail thread (Reply / Forward).
  */
 export async function sendEmail(
   userId: string,
-  args: { to: string; subject: string; bodyText?: string; bodyHtml?: string },
+  args: {
+    to: string;
+    subject: string;
+    bodyText?: string;
+    bodyHtml?: string;
+    threadId?: string | null;
+    inReplyToMessageId?: string | null; // Gmail message id we're replying to
+    inReplyToRfcId?: string | null; // RFC-822 Message-Id header value
+  },
 ): Promise<{ id: string; threadId: string } | null> {
   const gmail = await getGmailClient(userId);
   if (!gmail) return null;
 
-  const mime = [
+  const headers: string[] = [
     `To: ${args.to}`,
     `Subject: ${args.subject}`,
     "MIME-Version: 1.0",
     args.bodyHtml
       ? 'Content-Type: text/html; charset="UTF-8"'
       : 'Content-Type: text/plain; charset="UTF-8"',
-    "",
-    args.bodyHtml ?? args.bodyText ?? "",
-  ].join("\r\n");
-
+  ];
+  if (args.inReplyToRfcId) {
+    headers.push(`In-Reply-To: ${args.inReplyToRfcId}`);
+    headers.push(`References: ${args.inReplyToRfcId}`);
+  }
+  const mime = [...headers, "", args.bodyHtml ?? args.bodyText ?? ""].join("\r\n");
   const raw = Buffer.from(mime).toString("base64url");
-  const res = await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+
+  const res = await gmail.users.messages.send({
+    userId: "me",
+    requestBody: {
+      raw,
+      ...(args.threadId ? { threadId: args.threadId } : {}),
+    },
+  });
   return { id: res.data.id!, threadId: res.data.threadId! };
+}
+
+/**
+ * Fetch the RFC-822 Message-Id of a Gmail message by its Gmail id. Used so we
+ * can set In-Reply-To / References headers when replying.
+ */
+export async function getRfcMessageId(
+  userId: string,
+  gmailId: string,
+): Promise<string | null> {
+  const gmail = await getGmailClient(userId);
+  if (!gmail) return null;
+  const res = await gmail.users.messages.get({
+    userId: "me",
+    id: gmailId,
+    format: "metadata",
+    metadataHeaders: ["Message-Id", "Message-ID"],
+  });
+  return header(res.data, "Message-Id") ?? header(res.data, "Message-ID") ?? null;
 }

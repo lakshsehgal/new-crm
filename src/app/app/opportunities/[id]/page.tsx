@@ -53,11 +53,24 @@ export default async function OpportunityDetailPage({
   if (!opp) notFound();
 
   const contactIds = opp.lead.contacts.map((c) => c.id);
+  const contactEmails = opp.lead.contacts
+    .map((c) => c.email)
+    .filter((e): e is string => !!e);
   const [customFields, emails] = await Promise.all([
     db.customField.findMany({ orderBy: { order: "asc" } }),
-    contactIds.length
+    contactIds.length || contactEmails.length
       ? db.email.findMany({
-          where: { contactId: { in: contactIds } },
+          where: {
+            OR: [
+              ...(contactIds.length ? [{ contactId: { in: contactIds } }] : []),
+              ...(contactEmails.length
+                ? [
+                    { fromEmail: { in: contactEmails } },
+                    { toEmails: { hasSome: contactEmails } },
+                  ]
+                : []),
+            ],
+          },
           orderBy: { sentAt: "desc" },
           take: 50,
         })

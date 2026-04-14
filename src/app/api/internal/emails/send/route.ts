@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { sendEmail } from "@/lib/gmail";
+import { sendEmail, getRfcMessageId } from "@/lib/gmail";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { z } from "zod";
 
@@ -11,6 +11,8 @@ const Body = z.object({
   subject: z.string().min(1),
   bodyText: z.string().optional(),
   bodyHtml: z.string().optional(),
+  /** Optional: reply into an existing Gmail thread */
+  replyToEmailId: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -25,11 +27,29 @@ export async function POST(req: NextRequest) {
   }
   if (!to) return Response.json({ error: "No recipient" }, { status: 400 });
 
+  // Thread info when replying
+  let threadId: string | null | undefined;
+  let inReplyToRfcId: string | null = null;
+  if (data.replyToEmailId) {
+    const source = await db.email.findUnique({
+      where: { id: data.replyToEmailId },
+    });
+    if (source) {
+      threadId = source.threadId;
+      if (source.gmailId) {
+        inReplyToRfcId = await getRfcMessageId(user.id, source.gmailId);
+      }
+      if (!contactId && source.contactId) contactId = source.contactId;
+    }
+  }
+
   const result = await sendEmail(user.id, {
     to,
     subject: data.subject,
     bodyText: data.bodyText,
     bodyHtml: data.bodyHtml,
+    threadId,
+    inReplyToRfcId,
   });
   if (!result) return Response.json({ error: "Gmail not connected" }, { status: 400 });
 
