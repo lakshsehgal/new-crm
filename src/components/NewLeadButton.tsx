@@ -55,11 +55,11 @@ export default function NewLeadButton({ label = "New lead" }: Props) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4"
+          className="modal-overlay"
           onClick={() => setOpen(false)}
         >
           <div
-            className="card w-full max-w-[560px] p-6 shadow-pop"
+            className="modal-card w-full max-w-[560px] p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

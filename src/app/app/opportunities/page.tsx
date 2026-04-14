@@ -75,6 +75,7 @@ export default async function OpportunitiesPage({
       </div>
 
       <KanbanBoard
+        pipelineId={active.id}
         stages={stages.map((s, idx) => ({
           id: s.id,
           name: s.name,

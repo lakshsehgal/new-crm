@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     data: {
       name: data.name,
       value: data.value ? Number(data.value) : 0,
-      currency: data.currency ?? "USD",
+      currency: data.currency ?? "INR",
       pipelineId,
       stageId,
       stageOrder: order,

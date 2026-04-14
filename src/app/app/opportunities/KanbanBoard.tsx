@@ -5,15 +5,25 @@ import Link from "next/link";
 import {
   DndContext,
   DragEndEvent,
+  DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
   useDroppable,
   useDraggable,
+  closestCorners,
+  DragOverlay,
 } from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, GripVertical } from "lucide-react";
 
 type Stage = {
   id: string;
@@ -58,14 +68,22 @@ function pickLogoColor(seed: string): string {
 }
 
 export default function KanbanBoard({
-  stages,
+  pipelineId,
+  stages: initialStages,
   initialCards,
 }: {
+  pipelineId: string;
   stages: Stage[];
   initialCards: Card[];
 }) {
+  const [stages, setStages] = useState(initialStages);
   const [cards, setCards] = useState(initialCards);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [activeStageId, setActiveStageId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
 
   const byStage = useMemo(() => {
     const map = new Map<string, Card[]>();
@@ -76,78 +94,184 @@ export default function KanbanBoard({
     return map;
   }, [stages, cards]);
 
-  async function persist(cardId: string, stageId: string, stageOrder: number) {
+  async function persistCardMove(cardId: string, stageId: string, stageOrder: number) {
     const res = await fetch(`/api/internal/opportunities/${cardId}/move`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ stageId, stageOrder }),
     });
-    if (!res.ok) toast.error("Failed to move");
+    if (!res.ok) toast.error("Failed to move card");
+  }
+
+  async function persistStageOrder(stageIds: string[]) {
+    const res = await fetch(
+      `/api/internal/pipelines/${pipelineId}/stages/reorder`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ stageIds }),
+      },
+    );
+    if (!res.ok) toast.error("Failed to reorder stages");
+    else toast.success("Stages reordered");
+  }
+
+  function onDragStart(e: DragStartEvent) {
+    const id = String(e.active.id);
+    if (id.startsWith("card:")) setActiveCardId(id.slice(5));
+    else if (id.startsWith("stage:")) setActiveStageId(id.slice(6));
   }
 
   function onDragEnd(e: DragEndEvent) {
-    const activeId = String(e.active.id).replace(/^card:/, "");
+    const activeId = String(e.active.id);
     const overId = e.over?.id ? String(e.over.id) : null;
+    setActiveCardId(null);
+    setActiveStageId(null);
     if (!overId) return;
-    const [overKind, overIdent] = overId.split(":");
-    const active = cards.find((c) => c.id === activeId);
+
+    // Stage reorder
+    if (activeId.startsWith("stage:") && overId.startsWith("stage:")) {
+      const from = stages.findIndex((s) => "stage:" + s.id === activeId);
+      const to = stages.findIndex((s) => "stage:" + s.id === overId);
+      if (from === -1 || to === -1 || from === to) return;
+      const next = arrayMove(stages, from, to);
+      setStages(next);
+      void persistStageOrder(next.map((s) => s.id));
+      return;
+    }
+
+    // Card move
+    if (!activeId.startsWith("card:")) return;
+    const cardId = activeId.slice(5);
+    const active = cards.find((c) => c.id === cardId);
     if (!active) return;
 
     let destStageId = active.stageId;
     let destIndex = 0;
 
-    if (overKind === "stage") {
-      destStageId = overIdent;
+    if (overId.startsWith("drop:")) {
+      destStageId = overId.slice(5);
       destIndex = byStage.get(destStageId)?.length ?? 0;
-    } else if (overKind === "card") {
-      const target = cards.find((c) => c.id === overIdent);
+    } else if (overId.startsWith("card:")) {
+      const targetId = overId.slice(5);
+      const target = cards.find((c) => c.id === targetId);
       if (!target) return;
       destStageId = target.stageId;
-      const list = (byStage.get(destStageId) ?? []).filter((c) => c.id !== activeId);
+      const list = (byStage.get(destStageId) ?? []).filter((c) => c.id !== cardId);
       destIndex = list.findIndex((c) => c.id === target.id);
       if (destIndex < 0) destIndex = list.length;
     } else return;
 
-    const next = cards.filter((c) => c.id !== activeId);
+    const next = cards.filter((c) => c.id !== cardId);
     const inStage = next.filter((c) => c.stageId === destStageId);
     const others = next.filter((c) => c.stageId !== destStageId);
     inStage.splice(destIndex, 0, { ...active, stageId: destStageId });
     const renumbered = inStage.map((c, i) => ({ ...c, stageOrder: i }));
     setCards([...others, ...renumbered]);
-    void persist(activeId, destStageId, destIndex);
+    void persistCardMove(cardId, destStageId, destIndex);
   }
+
+  const activeCard = activeCardId ? cards.find((c) => c.id === activeCardId) : null;
+  const activeStage = activeStageId ? stages.find((s) => s.id === activeStageId) : null;
 
   return (
     <div className="flex-1 overflow-hidden">
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        <div className="kanban h-full">
-          {stages.map((stage) => (
-            <StageColumn
-              key={stage.id}
-              stage={stage}
-              cards={byStage.get(stage.id) ?? []}
-            />
-          ))}
-        </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext
+          items={stages.map((s) => "stage:" + s.id)}
+          strategy={horizontalListSortingStrategy}
+        >
+          <div className="kanban h-full">
+            {stages.map((stage) => (
+              <SortableStageColumn
+                key={stage.id}
+                stage={stage}
+                cards={byStage.get(stage.id) ?? []}
+                isGhost={activeStageId === stage.id}
+              />
+            ))}
+          </div>
+        </SortableContext>
+
+        <DragOverlay dropAnimation={{ duration: 180 }}>
+          {activeCard && (
+            <div className="opp-card dragging" style={{ width: 260 }}>
+              <CardContent card={activeCard} />
+            </div>
+          )}
+          {activeStage && (
+            <div className="kanban-col" style={{ width: 260 }}>
+              <div className="kanban-col-head">
+                <div className={`stage-chip ${stageClass(activeStage)}`}>{activeStage.name}</div>
+              </div>
+            </div>
+          )}
+        </DragOverlay>
       </DndContext>
     </div>
   );
 }
 
-function StageColumn({ stage, cards }: { stage: Stage; cards: Card[] }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `stage:${stage.id}` });
+function SortableStageColumn({
+  stage,
+  cards,
+  isGhost,
+}: {
+  stage: Stage;
+  cards: Card[];
+  isGhost: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: "stage:" + stage.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging || isGhost ? 0.4 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="kanban-col">
+      <StageColumnContent stage={stage} cards={cards} dragHandle={{ attributes, listeners }} />
+    </div>
+  );
+}
+
+function StageColumnContent({
+  stage,
+  cards,
+  dragHandle,
+}: {
+  stage: Stage;
+  cards: Card[];
+  dragHandle: { attributes: any; listeners: any };
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: "drop:" + stage.id });
   const total = cards.reduce((sum, c) => sum + Number(c.value || 0), 0);
   return (
-    <div className="kanban-col">
+    <>
       <div className="kanban-col-head">
-        <div className={`stage-chip ${stageClass(stage)}`}>{stage.name}</div>
+        <div className="flex items-center gap-1.5">
+          <button
+            className="stage-grip"
+            {...dragHandle.attributes}
+            {...dragHandle.listeners}
+            aria-label="Drag stage"
+          >
+            <GripVertical size={12} />
+          </button>
+          <div className={`stage-chip ${stageClass(stage)}`}>{stage.name}</div>
+        </div>
         <div className="mt-1.5 text-[12px] text-muted">
           {cards.length} {cards.length === 1 ? "opportunity" : "opportunities"}
         </div>
         <div className="mt-2 flex items-center justify-between text-[11px]">
           <span className="text-mutedSoft uppercase tracking-wide">Total value</span>
           <span className="text-ink font-semibold text-[13px]">
-            {total > 0 ? formatMoney(total) : "$0"}
+            {total > 0 ? formatMoney(total) : "₹0"}
           </span>
         </div>
       </div>
@@ -161,34 +285,45 @@ function StageColumn({ stage, cards }: { stage: Stage; cards: Card[] }) {
           </div>
         )}
         {cards.map((c) => (
-          <KanbanCard key={c.id} card={c} />
+          <DraggableKanbanCard key={c.id} card={c} />
         ))}
       </div>
-    </div>
+    </>
   );
 }
 
-function KanbanCard({ card }: { card: Card }) {
+function DraggableKanbanCard({ card }: { card: Card }) {
   const { setNodeRef, attributes, listeners, transform, isDragging } = useDraggable({
-    id: `card:${card.id}`,
+    id: "card:" + card.id,
   });
   const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 40 }
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
-  const logoColor = pickLogoColor(card.leadName);
-  const letter = (card.leadName.trim()[0] ?? "?").toUpperCase();
-
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
-      className={"opp-card " + (isDragging ? "opacity-60" : "")}
+      className={"opp-card " + (isDragging ? "opacity-30" : "")}
     >
+      <CardContent card={card} />
+    </div>
+  );
+}
+
+function CardContent({ card }: { card: Card }) {
+  const logoColor = pickLogoColor(card.leadName);
+  const letter = (card.leadName.trim()[0] ?? "?").toUpperCase();
+  return (
+    <>
       <div className="title-row">
         <span className={`logo ${logoColor}`}>{letter}</span>
-        <Link href={`/app/leads/${card.leadId}`} className="truncate hover:underline">
+        <Link
+          href={`/app/leads/${card.leadId}`}
+          className="truncate hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
           {card.leadName}
         </Link>
       </div>
@@ -213,6 +348,6 @@ function KanbanCard({ card }: { card: Card }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

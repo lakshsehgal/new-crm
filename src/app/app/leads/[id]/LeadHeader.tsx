@@ -69,7 +69,7 @@ export default function LeadHeader({ lead }: { lead: Lead }) {
             {status.replace("_", " ")} <ChevronDown size={12} />
           </button>
           {open && (
-            <div className="absolute top-full left-0 mt-1 card shadow-pop z-30 py-1 min-w-[160px]">
+            <div className="absolute top-full left-0 mt-1 card shadow-pop z-30 py-1 min-w-[160px] pop-in">
               {STATUSES.map((s) => (
                 <button
                   key={s}

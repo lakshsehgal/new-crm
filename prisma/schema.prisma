@@ -200,7 +200,7 @@ model Opportunity {
   id              String         @id @default(cuid())
   name            String
   value           Decimal        @default(0) @db.Decimal(12, 2)
-  currency        String         @default("USD")
+  currency        String         @default("INR")
   pipelineId      String
   pipeline        Pipeline       @relation(fields: [pipelineId], references: [id])
   stageId         String

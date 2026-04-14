@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
         data: {
           name: String(data.name ?? leadName),
           value: data.value ? Number(data.value) : 0,
-          currency: String(data.currency ?? "USD"),
+          currency: String(data.currency ?? "INR"),
           pipelineId: pipeline.id,
           stageId: stage.id,
           stageOrder: count,

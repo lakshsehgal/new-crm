@@ -71,8 +71,8 @@ export default function AddOppButton({
         <Plus size={12} />
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={() => setOpen(false)}>
-          <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setOpen(false)}>
+          <div className="modal-card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="font-semibold">Add opportunity</h2>
               <button className="size-7 grid place-items-center text-muted hover:bg-surface rounded" onClick={() => setOpen(false)}>

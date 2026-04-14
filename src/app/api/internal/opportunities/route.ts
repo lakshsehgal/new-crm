@@ -7,7 +7,7 @@ import { z } from "zod";
 const Body = z.object({
   name: z.string().min(1),
   value: z.union([z.string(), z.number()]).optional(),
-  currency: z.string().default("USD").optional(),
+  currency: z.string().default("INR").optional(),
   pipelineId: z.string(),
   stageId: z.string(),
   leadId: z.string(),
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     data: {
       name: data.name,
       value: data.value ? Number(data.value) : 0,
-      currency: data.currency ?? "USD",
+      currency: data.currency ?? "INR",
       pipelineId: data.pipelineId,
       stageId: data.stageId,
       stageOrder: count,

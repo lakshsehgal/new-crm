@@ -2,9 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
-}
+:root { color-scheme: light; }
 
 html, body {
   background: theme("colors.surface");
@@ -12,11 +10,18 @@ html, body {
   font-feature-settings: "cv11", "ss01";
 }
 
-/* Scrollbars */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: theme("colors.border") transparent;
+/* Smooth transitions app-wide */
+a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 150ms ease,
+    transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
+
+/* Scrollbars */
+* { scrollbar-width: thin; scrollbar-color: theme("colors.border") transparent; }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-thumb {
   background: theme("colors.border");
@@ -26,69 +31,94 @@ html, body {
 }
 *::-webkit-scrollbar-track { background: transparent; }
 
+/* ----- Animations ----- */
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in    { animation: fade-in 140ms ease-out; }
+.pop-in     { animation: pop-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.slide-down { animation: slide-down 150ms ease-out; }
+
 /* ----- Sidebar (dark) ----- */
 .sidebar { @apply bg-sidebar-bg text-sidebar-ink; }
 .sidebar .nav-item {
-  @apply flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] text-sidebar-ink/90 hover:bg-sidebar-hover cursor-pointer select-none;
+  @apply flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] text-sidebar-ink/90 cursor-pointer select-none;
 }
-.sidebar .nav-item.active {
-  @apply bg-sidebar-hover text-white;
-}
-.sidebar .nav-sub {
-  @apply flex items-center gap-2 pl-9 pr-3 py-1 text-[12.5px] text-sidebar-muted hover:text-sidebar-ink cursor-pointer;
-}
-.sidebar .nav-sub.active { @apply text-white; }
+.sidebar .nav-item:hover { @apply bg-sidebar-hover; }
+.sidebar .nav-item.active { @apply bg-sidebar-hover text-white; }
 .sidebar .section-label {
   @apply px-3 pt-4 pb-1 text-[10.5px] tracking-wider uppercase text-sidebar-muted font-medium;
 }
 
-/* ----- Light content components ----- */
+/* ----- Light content ----- */
 .card {
   @apply bg-white border border-border rounded-xl shadow-card;
 }
 
 .btn {
   @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium
-         bg-white border border-border text-ink hover:bg-surface transition-colors;
+         bg-white border border-border text-ink;
 }
+.btn:hover { @apply bg-surface; }
+.btn:active { transform: translateY(0.5px); }
+
 .btn-primary {
   @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium
-         bg-accent text-white hover:bg-blue-700 transition-colors;
+         bg-accent text-white;
 }
+.btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37,99,235,0.25); }
+.btn-primary:active { transform: translateY(0.5px); }
+
 .btn-ghost {
-  @apply inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted hover:bg-surface transition-colors;
+  @apply inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted;
 }
+.btn-ghost:hover { @apply bg-surface; }
 
 .input {
   @apply w-full rounded-lg border border-border bg-white px-3 py-1.5 text-sm
          outline-none focus:border-accent focus:ring-2 focus:ring-accentSoft;
 }
 
-.label {
-  @apply text-xs font-medium text-muted uppercase tracking-wide;
-}
+.label { @apply text-xs font-medium text-muted uppercase tracking-wide; }
 
 .pill {
   @apply inline-flex items-center gap-1.5 rounded-full border border-border bg-white text-ink
-         px-3 py-1 text-[13px] font-medium hover:bg-surface transition-colors;
+         px-3 py-1 text-[13px] font-medium cursor-pointer;
 }
-.pill-muted {
-  @apply inline-flex items-center gap-1 text-[13px] text-muted;
-}
+.pill:hover { @apply bg-surface border-accent/30; }
+.pill-active { @apply bg-accentSoft border-accent text-accent; }
+.pill-muted { @apply inline-flex items-center gap-1 text-[13px] text-muted; }
 
 .badge {
   @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium bg-surface border border-border;
 }
 
-/* Compact table */
+/* Tables */
 .tbl { @apply w-full text-sm; }
 .tbl th {
   @apply px-3 py-2 text-left font-medium text-muted border-b border-border sticky top-0 bg-white/95 backdrop-blur;
 }
 .tbl td { @apply px-3 py-2 border-b border-border; }
+.tbl tr { transition: background-color 120ms ease; }
 .tbl tr:hover td { @apply bg-accentSoft/30; }
 
-/* ----- Kanban (Close-style) ----- */
+/* Modal overlay */
+.modal-overlay {
+  @apply fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4;
+  animation: fade-in 150ms ease-out;
+}
+.modal-card {
+  @apply card shadow-pop;
+  animation: pop-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ----- Kanban ----- */
 .kanban {
   @apply flex gap-0 overflow-x-auto overflow-y-hidden h-full;
 }
@@ -96,58 +126,70 @@ html, body {
   @apply min-w-[280px] w-[280px] flex-shrink-0 flex flex-col border-r border-border bg-surface/50;
 }
 .kanban-col:last-child { @apply border-r-0; }
+.kanban-col.dragging { opacity: 0.5; }
+.kanban-col.drag-over { background: theme("colors.accentSoft / 30%"); }
 
 .kanban-col-head {
   @apply px-3 pt-4 pb-3 border-b border-border bg-surface sticky top-0 z-10;
 }
 .stage-chip {
   @apply inline-block text-[10.5px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded;
-  color: #6b4f00;
 }
-.stage-chip.s-yellow   { background: #fef3c7; color: #92610a; }
-.stage-chip.s-orange   { background: #ffedd5; color: #9a3412; }
-.stage-chip.s-amber    { background: #fef3c7; color: #854d0e; }
-.stage-chip.s-blue     { background: #dbeafe; color: #1e40af; }
-.stage-chip.s-purple   { background: #ede9fe; color: #5b21b6; }
-.stage-chip.s-teal     { background: #ccfbf1; color: #115e59; }
-.stage-chip.s-emerald  { background: #d1fae5; color: #065f46; }
-.stage-chip.s-rose     { background: #ffe4e6; color: #9f1239; }
-.stage-chip.s-red      { background: #fee2e2; color: #991b1b; }
+.stage-chip.s-yellow  { background: #fef3c7; color: #92610a; }
+.stage-chip.s-orange  { background: #ffedd5; color: #9a3412; }
+.stage-chip.s-amber   { background: #fef3c7; color: #854d0e; }
+.stage-chip.s-blue    { background: #dbeafe; color: #1e40af; }
+.stage-chip.s-purple  { background: #ede9fe; color: #5b21b6; }
+.stage-chip.s-teal    { background: #ccfbf1; color: #115e59; }
+.stage-chip.s-emerald { background: #d1fae5; color: #065f46; }
+.stage-chip.s-rose    { background: #ffe4e6; color: #9f1239; }
+.stage-chip.s-red     { background: #fee2e2; color: #991b1b; }
 
-.kanban-col-body {
-  @apply flex-1 p-2 space-y-2 overflow-y-auto;
-}
+.kanban-col-body { @apply flex-1 p-2 space-y-2 overflow-y-auto; }
 
 /* Opportunity card */
 .opp-card {
-  @apply bg-white border border-border rounded-lg px-3 py-2.5 shadow-card
-         hover:shadow-cardHover hover:border-accent/30 transition
-         cursor-grab active:cursor-grabbing relative;
+  @apply bg-white border border-border rounded-lg px-3 py-2.5 shadow-card relative;
+  cursor: grab;
 }
+.opp-card:hover {
+  @apply shadow-cardHover;
+  border-color: rgba(37,99,235,0.3);
+  transform: translateY(-1px);
+}
+.opp-card:active { cursor: grabbing; }
+.opp-card.dragging {
+  box-shadow: 0 12px 28px rgba(15,20,25,0.18);
+  transform: rotate(-0.5deg) scale(1.02);
+  z-index: 40;
+}
+
 .opp-card .title-row {
   @apply flex items-center gap-1.5 text-[13px] font-semibold text-accent;
 }
 .opp-card .title-row .logo {
   @apply size-[18px] rounded grid place-items-center text-[10px] font-bold text-white flex-shrink-0;
 }
-.opp-card .meta-row {
-  @apply flex items-center gap-2 mt-2;
-}
+.opp-card .meta-row { @apply flex items-center gap-2 mt-2; }
 .opp-card .avatar {
   @apply size-5 rounded-full bg-accentSoft text-accent text-[9px] font-semibold grid place-items-center flex-shrink-0;
 }
-.opp-card .value-col {
-  @apply flex-1 min-w-0 leading-tight;
-}
-.opp-card .value-amt {
-  @apply text-[12.5px] font-semibold text-ink;
-}
-.opp-card .value-prob {
-  @apply text-[11px] text-muted;
-}
+.opp-card .value-col { @apply flex-1 min-w-0 leading-tight; }
+.opp-card .value-amt { @apply text-[12.5px] font-semibold text-ink; }
+.opp-card .value-prob { @apply text-[11px] text-muted; }
 .opp-card .footer-row {
   @apply flex items-center gap-2 mt-2 pt-2 border-t border-border/70 text-[12px] text-muted;
 }
-.opp-card .actions {
-  @apply absolute right-2 top-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity;
+
+/* Tiny icon buttons */
+.icon-btn {
+  @apply size-6 grid place-items-center rounded text-muted;
 }
+.icon-btn:hover { @apply bg-surface text-ink; }
+
+/* Stage drag handle */
+.stage-grip {
+  @apply size-5 grid place-items-center rounded text-mutedSoft cursor-grab;
+}
+.stage-grip:hover { @apply bg-surface text-ink; }
+.stage-grip:active { cursor: grabbing; }
