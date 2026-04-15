@@ -81,21 +81,17 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col, .nav-i
 
 /* Brand block at top-left */
 .sidebar .brand-row {
-  @apply flex items-center gap-2.5 px-2 py-2 rounded-lg select-none;
+  @apply flex items-center justify-center px-2 py-2.5 rounded-lg select-none;
   color: #ffffff;
 }
 .sidebar .brand-row:hover { background: theme("colors.sidebar.hover"); }
-.sidebar .brand-mark {
-  @apply size-7 rounded-lg grid place-items-center text-white flex-shrink-0;
-  background:
-    linear-gradient(135deg, #3b82f6 0%, #8b5cf6 60%, #ec4899 100%);
-  box-shadow:
-    0 1px 0 rgba(255,255,255,0.15) inset,
-    0 6px 14px rgba(59,130,246,0.35);
-}
-.sidebar .brand-word {
-  @apply text-[15px] font-bold tracking-tight text-white;
-  letter-spacing: -0.01em;
+.sidebar .brand-logo-img {
+  max-height: 36px;
+  max-width: 100%;
+  height: auto;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .sidebar .nav-item {

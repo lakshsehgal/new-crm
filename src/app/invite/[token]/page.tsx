@@ -183,9 +183,9 @@ function Shell({
           <span className="size-9 rounded-xl overflow-hidden grid place-items-center bg-white">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logos/logo.svg"
+              src="/logos/logo.png"
               alt=""
-              className="size-9 object-cover"
+              className="size-9 object-contain"
             />
           </span>
           <div>

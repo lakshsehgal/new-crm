@@ -1,34 +1,62 @@
-# Workspace logo
+# Brand assets
 
-Drop your logo here to have it show up in the sidebar's top-left.
+Drop your logo and favicon here (or at the favicon path below) to rebrand
+the CRM — no code changes required.
 
-## How it works
+## Sidebar logo
 
-The app's sidebar loads `/logos/logo.svg` by default. To use your own logo:
+**File:** `public/logos/logo.png` (committed to Git)
 
-1. **Replace `logo.svg`** in this folder with your own file, keeping the filename
-   exactly as `logo.svg`. It'll load automatically — no code change.
-2. Or, if you want to use a raster image instead, drop it in as `logo.png`
-   (or `.jpg`) and update the `<img src>` in
-   `src/app/app/layout.tsx` to point at your file.
+The sidebar's top-left slot loads this file directly and renders it on the
+dark background without any text or extra styling. Whatever you upload is
+what appears.
 
-## Recommended format
+### Recommendations
 
-- **SVG** preferred (sharp at any size, including Retina). Aim for a ~28×28
-  or square aspect so it fits the sidebar's circular crop cleanly.
-- **PNG** acceptable if you don't have a vector source. Use at least 128×128
-  so it stays crisp on high-DPI displays.
-- Keep the file under ~50 KB so the sidebar stays snappy on first paint.
+- **Format:** PNG with a transparent background works best since the
+  sidebar is dark. SVG also supported — same filename, just rename the
+  `<img src>` in `src/app/app/layout.tsx` to `logo.svg`.
+- **Dimensions:** Logo is capped at ~36 px tall and fills the available
+  width while preserving aspect ratio. Any horizontal logo ~120×36 or
+  square logo ~36×36 looks great. Upload at 2× (so ~72 px tall) to keep
+  it crisp on Retina displays.
+- **File size:** Under ~80 KB keeps the sidebar snappy on first paint.
 
-## Size / position
+### Workflow to swap
 
-The logo renders at roughly 28×28 pixels in a rounded square container with
-a small inset. Most corporate logos look great; if yours has lots of text or
-fine detail, consider using just the mark (not the wordmark) since the space
-is compact.
+1. Replace `logo.png` in this folder.
+2. Commit + push to your deployment branch.
+3. Vercel redeploys (~60 s) and the new logo appears.
 
-## Versioning
+---
 
-Since this file is committed to Git, every deploy picks up whichever version
-is on the current branch. Swap it per-environment by maintaining different
-versions on different branches if needed.
+## Browser favicon
+
+**Primary file:** `public/logos/favicon.png` (drop yours here)
+**Fallback:** `public/logos/favicon.svg` (purple gradient "N", shipped default)
+
+The browser tab icon is wired up via the root layout's `metadata.icons`
+config, which tries `favicon.png` first and falls back to `favicon.svg`
+if the PNG isn't there. You don't have to touch any code.
+
+### To customize
+
+1. Drop your favicon into this folder as `favicon.png` (exactly that
+   filename). 
+2. Optionally add an iOS home-screen icon at 180×180 with the same
+   filename (`favicon.png` is reused for Apple touch icon).
+3. Commit + push. The tab icon updates after Vercel redeploys.
+
+### Recommendations
+
+- **PNG at 512×512** — stays sharp on Retina + looks great in Android's
+  "add to home screen" slot.
+- Keep it **square**. Favicon slots are tiny and anything rectangular
+  gets letterboxed awkwardly.
+- File size under 50 KB so page TTFB isn't affected.
+
+### What happens without a custom favicon
+
+The default `favicon.svg` in this folder is a purple gradient "N"
+matching the CRM's fallback brand. Perfectly usable until you upload
+your own.

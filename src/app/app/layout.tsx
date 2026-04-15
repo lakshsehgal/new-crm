@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { initials } from "@/lib/utils";
 import GlobalSearch from "@/components/GlobalSearch";
+import BrandLogo from "@/components/BrandLogo";
 import SidebarNav from "./SidebarNav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -31,17 +32,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <aside className="sidebar flex flex-col h-screen sticky top-0">
         {/* Brand */}
         <div className="px-3 pt-3.5 pb-3">
-          <Link href="/app" className="brand-row" aria-label="Neuroid home">
-            <span className="brand-mark">
-              {/* Swap /public/logos/logo.svg to rebrand. See /public/logos/README.md */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/logos/logo.svg"
-                alt=""
-                className="size-7 rounded-lg object-cover"
-              />
-            </span>
-            <span className="brand-word">Neuroid</span>
+          <Link href="/app" className="brand-row" aria-label="Home">
+            {/* Swap /public/logos/logo.png to rebrand. See /public/logos/README.md */}
+            <BrandLogo className="brand-logo-img" />
           </Link>
         </div>
 
