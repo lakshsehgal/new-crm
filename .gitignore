@@ -10,3 +10,4 @@ dist
 prisma/*.db
 prisma/*.db-journal
 .vercel
+tsconfig.tsbuildinfo
