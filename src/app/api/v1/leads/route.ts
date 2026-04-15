@@ -213,41 +213,51 @@ export async function POST(req: NextRequest) {
     // LEAD_NOTIFICATION_EMAILS env var (comma-separated) if set, otherwise
     // fall back to the API key owner's email so it "just works" out of the box.
     void (async () => {
-      const envTo = (process.env.LEAD_NOTIFICATION_EMAILS ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      let recipients = envTo;
-      if (recipients.length === 0) {
-        const owner = await db.user.findUnique({
-          where: { id: caller.userId },
-          select: { email: true },
+      try {
+        const envTo = (process.env.LEAD_NOTIFICATION_EMAILS ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        let recipients = envTo;
+        if (recipients.length === 0) {
+          const owner = await db.user.findUnique({
+            where: { id: caller.userId },
+            select: { email: true },
+          });
+          if (owner?.email) recipients = [owner.email];
+        }
+        // Resolve app origin: env var > request origin > custom-domain default.
+        let origin = process.env.NEXT_PUBLIC_APP_URL;
+        if (!origin) {
+          try {
+            origin = req.nextUrl.origin;
+          } catch {
+            origin = "https://sales.neuroidmedia.com";
+          }
+        }
+        await notifyLeadCreated(recipients, {
+          leadId: result.lead.id,
+          leadName: result.lead.name,
+          url: result.lead.url,
+          description: result.lead.description,
+          status: result.lead.status,
+          customData: (result.lead.customData as Record<string, unknown>) ?? {},
+          contact: result.contact
+            ? {
+                name:
+                  [result.contact.firstName, result.contact.lastName]
+                    .filter(Boolean)
+                    .join(" ") || null,
+                email: result.contact.email,
+                phone: result.contact.phone,
+                title: result.contact.title,
+              }
+            : null,
+          appOrigin: origin,
         });
-        if (owner?.email) recipients = [owner.email];
+      } catch (err) {
+        console.error("[leads] post-create alert failed:", err);
       }
-      const origin =
-        process.env.NEXT_PUBLIC_APP_URL ??
-        req.nextUrl.origin;
-      await notifyLeadCreated(recipients, {
-        leadId: result.lead.id,
-        leadName: result.lead.name,
-        url: result.lead.url,
-        description: result.lead.description,
-        status: result.lead.status,
-        customData: (result.lead.customData as Record<string, unknown>) ?? {},
-        contact: result.contact
-          ? {
-              name:
-                [result.contact.firstName, result.contact.lastName]
-                  .filter(Boolean)
-                  .join(" ") || null,
-              email: result.contact.email,
-              phone: result.contact.phone,
-              title: result.contact.title,
-            }
-          : null,
-        appOrigin: origin,
-      });
     })();
 
     return Response.json(result, { status: 201 });
