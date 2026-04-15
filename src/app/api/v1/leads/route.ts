@@ -3,24 +3,42 @@ import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { Prisma } from "@prisma/client";
-import { z } from "zod";
+import { z, ZodError } from "zod";
+
+// Zapier (and other integrators) send empty strings for missing fields
+// instead of omitting them. Zod's strict .email() / .url() throw on empty
+// strings, which turns into a 500. Use lenient helpers that treat empty
+// strings as "not provided".
+const optionalEmail = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+  z.string().email().optional(),
+);
+const optionalUrl = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+  z.string().url().optional(),
+);
+const optionalStr = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+  z.string().optional(),
+);
 
 const Body = z.object({
   // name is now optional — if omitted, we derive it from `url` (brand domain)
   // or fall back to `contactName`. Makes FB Lead Ads flows work out of the
   // box when the form only collects a website, not a company name.
-  name: z.string().optional(),
+  name: optionalStr,
   status: z.enum(["POTENTIAL", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"]).optional(),
-  url: z.string().url().optional(),
-  description: z.string().optional(),
-  address: z.string().optional(),
-  // Lead-level custom fields, keyed by CustomField.key
+  url: optionalUrl,
+  description: optionalStr,
+  address: optionalStr,
+  // Lead-level custom fields, keyed by CustomField.key. Empty-string values
+  // get stripped below so the UI doesn't show blank fields.
   customData: z.record(z.any()).optional(),
   // Optional first contact fields
-  contactName: z.string().optional(),
-  contactEmail: z.string().email().optional(),
-  contactPhone: z.string().optional(),
-  contactTitle: z.string().optional(),
+  contactName: optionalStr,
+  contactEmail: optionalEmail,
+  contactPhone: optionalStr,
+  contactTitle: optionalStr,
   contactCustomData: z.record(z.any()).optional(),
 });
 
@@ -45,6 +63,18 @@ function brandFromUrl(raw: string): string | null {
   }
 }
 
+/** Drop entries whose value is null / undefined / empty string. */
+function stripEmpty(obj: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!obj) return {};
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === null || v === undefined) continue;
+    if (typeof v === "string" && v.trim() === "") continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 export async function GET(req: NextRequest) {
   const caller = await authenticateApiRequest(req);
   if (!caller) return unauthorized();
@@ -59,7 +89,26 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const caller = await authenticateApiRequest(req);
   if (!caller) return unauthorized();
-  const data = Body.parse(await req.json());
+
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return Response.json({ error: "Body must be valid JSON" }, { status: 400 });
+  }
+
+  let data: z.infer<typeof Body>;
+  try {
+    data = Body.parse(raw);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return Response.json(
+        { error: "Invalid body", issues: err.issues },
+        { status: 400 },
+      );
+    }
+    throw err;
+  }
 
   // Resolve lead name: explicit > derived from URL > contact name
   const leadName =
@@ -83,36 +132,45 @@ export async function POST(req: NextRequest) {
   const [firstName, ...rest] = (data.contactName ?? "").trim().split(/\s+/);
   const lastName = rest.join(" ") || undefined;
 
-  const result = await db.$transaction(async (tx) => {
-    const lead = await tx.lead.create({
-      data: {
-        name: leadName,
-        status: data.status ?? "POTENTIAL",
-        url: data.url ?? null,
-        description: data.description ?? null,
-        address: data.address ?? null,
-        customData: (data.customData ?? {}) as Prisma.InputJsonValue,
-        ownerId: caller.userId,
-      },
-    });
-    let contact = null;
-    if (shouldMakeContact) {
-      contact = await tx.contact.create({
+  const cleanLeadCustom = stripEmpty(data.customData);
+  const cleanContactCustom = stripEmpty(data.contactCustomData);
+
+  try {
+    const result = await db.$transaction(async (tx) => {
+      const lead = await tx.lead.create({
         data: {
-          firstName: firstName || null,
-          lastName: lastName || null,
-          email: data.contactEmail || null,
-          phone: data.contactPhone || null,
-          title: data.contactTitle || null,
-          customData: (data.contactCustomData ?? {}) as Prisma.InputJsonValue,
-          leadId: lead.id,
+          name: leadName,
+          status: data.status ?? "POTENTIAL",
+          url: data.url ?? null,
+          description: data.description ?? null,
+          address: data.address ?? null,
+          customData: cleanLeadCustom as Prisma.InputJsonValue,
           ownerId: caller.userId,
         },
       });
-    }
-    return { lead, contact };
-  });
-  void dispatchWebhook("LEAD_CREATED", result.lead);
-  if (result.contact) void dispatchWebhook("CONTACT_CREATED", result.contact);
-  return Response.json(result, { status: 201 });
+      let contact = null;
+      if (shouldMakeContact) {
+        contact = await tx.contact.create({
+          data: {
+            firstName: firstName || null,
+            lastName: lastName || null,
+            email: data.contactEmail || null,
+            phone: data.contactPhone || null,
+            title: data.contactTitle || null,
+            customData: cleanContactCustom as Prisma.InputJsonValue,
+            leadId: lead.id,
+            ownerId: caller.userId,
+          },
+        });
+      }
+      return { lead, contact };
+    });
+    void dispatchWebhook("LEAD_CREATED", result.lead);
+    if (result.contact) void dispatchWebhook("CONTACT_CREATED", result.contact);
+    return Response.json(result, { status: 201 });
+  } catch (err) {
+    console.error("POST /api/v1/leads failed:", err);
+    const message = err instanceof Error ? err.message : "Internal error";
+    return Response.json({ error: message }, { status: 500 });
+  }
 }
