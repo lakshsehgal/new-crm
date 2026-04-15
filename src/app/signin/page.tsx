@@ -1,5 +1,29 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { AuthError } from "next-auth";
 import { signIn, authProviders } from "@/lib/auth";
+
+/**
+ * NextAuth v5 signIn() throws on both success (a NEXT_REDIRECT) AND auth
+ * failure (an AuthError). We catch AuthError and redirect to /signin with
+ * an ?error= query param so the page can render a friendly message.
+ * Everything else (including NEXT_REDIRECT) re-throws, which is what Next
+ * needs to actually redirect on successful auth.
+ */
+async function handleSignIn(
+  provider: "google" | "resend" | "dev",
+  options: Record<string, unknown>,
+): Promise<never> {
+  try {
+    await signIn(provider, options);
+    redirect("/signin");
+  } catch (err) {
+    if (err instanceof AuthError) {
+      redirect(`/signin?error=${encodeURIComponent(err.type)}`);
+    }
+    throw err;
+  }
+}
 
 export default async function SignInPage({
   searchParams,
@@ -40,7 +64,7 @@ export default async function SignInPage({
           <form
             action={async () => {
               "use server";
-              await signIn("google", { redirectTo: "/app" });
+              await handleSignIn("google", { redirectTo: "/app" });
             }}
           >
             <button className="btn-primary w-full justify-center" type="submit">
@@ -66,7 +90,7 @@ export default async function SignInPage({
               className="space-y-3"
               action={async (fd: FormData) => {
                 "use server";
-                await signIn("resend", {
+                await handleSignIn("resend", {
                   email: String(fd.get("email") ?? "").trim().toLowerCase(),
                   redirectTo: "/app",
                 });
@@ -108,7 +132,7 @@ export default async function SignInPage({
                 className="mt-3 space-y-3"
                 action={async (fd: FormData) => {
                   "use server";
-                  await signIn("dev", {
+                  await handleSignIn("dev", {
                     email: String(fd.get("email") ?? ""),
                     password: String(fd.get("password") ?? ""),
                     redirectTo: "/app",

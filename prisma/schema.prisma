@@ -89,6 +89,7 @@ model User {
   emails             Email[]
   emailTemplates     EmailTemplate[]
   gmailSync          GmailSync?
+  invitesSent        Invite[]      @relation("InviteSender")
 }
 
 model Account {
@@ -319,6 +320,26 @@ model GmailSync {
   enabled      Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+/// A pending invitation issued by an admin. When the invited email signs
+/// in for the first time, their User record is upgraded to the invite's
+/// role and the invite is marked accepted.
+model Invite {
+  id          String    @id @default(cuid())
+  email       String
+  token       String    @unique
+  role        Role      @default(USER)
+  invitedById String?
+  invitedBy   User?     @relation("InviteSender", fields: [invitedById], references: [id], onDelete: SetNull)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([email])
+  @@index([invitedById])
 }
 
 /// Shared email templates. Supports {{placeholder}} tokens that are
