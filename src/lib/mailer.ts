@@ -88,12 +88,15 @@ function row(label: string, value: string | null | undefined): string {
 
 function renderLeadEmail(p: LeadAlertPayload): string {
   const leadUrl = `${p.appOrigin.replace(/\/$/, "")}/app/leads/${p.leadId}`;
-  const customRows = Object.entries(p.customData)
-    .filter(([, v]) => v !== null && v !== undefined && v !== "")
-    .map(([k, v]) => row(humanizeKey(k), String(v)))
-    .join("");
+  const customEntries = Object.entries(p.customData).filter(
+    ([, v]) => v !== null && v !== undefined && v !== "",
+  );
+  const customSection = customEntries.length
+    ? `<tr><td colspan="2" style="padding:14px 0 4px 0;color:#0f1419;font-size:13px;font-weight:700;border-top:1px solid #e6e8ec">Lead details</td></tr>
+       ${customEntries.map(([k, v]) => row(humanizeKey(k), String(v))).join("")}`
+    : "";
   const contactBlock = p.contact
-    ? `<tr><td colspan="2" style="padding:12px 0 4px 0;color:#0f1419;font-size:13px;font-weight:600;border-top:1px solid #e6e8ec">Primary contact</td></tr>
+    ? `<tr><td colspan="2" style="padding:14px 0 4px 0;color:#0f1419;font-size:13px;font-weight:700;border-top:1px solid #e6e8ec">Primary contact</td></tr>
        ${row("Name", p.contact.name)}
        ${row("Title", p.contact.title)}
        ${row("Email", p.contact.email)}
@@ -112,7 +115,7 @@ function renderLeadEmail(p: LeadAlertPayload): string {
         <table style="width:100%;border-collapse:collapse">
           ${row("Website", p.url)}
           ${row("Source", p.description)}
-          ${customRows}
+          ${customSection}
           ${contactBlock}
         </table>
         <div style="margin-top:20px">
