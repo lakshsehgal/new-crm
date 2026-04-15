@@ -10,6 +10,8 @@ const Patch = z.object({
   currency: z.string().optional(),
   stageId: z.string().optional(),
   expectedCloseAt: z.string().datetime().nullable().optional(),
+  finalQuote: z.string().nullable().optional(),
+  sow: z.array(z.string()).optional(),
   customData: z.record(z.any()).optional(),
 });
 
@@ -42,6 +44,8 @@ export async function PATCH(
   if (data.stageId !== undefined) update.stageId = data.stageId;
   if (data.expectedCloseAt !== undefined)
     update.expectedCloseAt = data.expectedCloseAt ? new Date(data.expectedCloseAt) : null;
+  if (data.finalQuote !== undefined) update.finalQuote = data.finalQuote || null;
+  if (data.sow !== undefined) update.sow = data.sow;
   if (data.customData !== undefined) update.customData = data.customData;
 
   // If stage changed, potentially also set closedAt

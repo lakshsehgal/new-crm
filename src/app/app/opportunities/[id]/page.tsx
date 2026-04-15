@@ -6,10 +6,10 @@ import OpportunityHeader from "./OpportunityHeader";
 import OpportunityAboutEditor from "./OpportunityAboutEditor";
 import OppActivityFeed from "./OppActivityFeed";
 import CustomFieldsEditor from "@/components/CustomFieldsEditor";
+import TasksSection from "@/components/TasksSection";
+import ContactInlineEdit from "@/components/ContactInlineEdit";
 import Section, { SectionIconBtn as IconBtn } from "@/components/Section";
 import {
-  Mail,
-  Phone,
   Info,
   CheckCircle2,
   Building2,
@@ -126,6 +126,8 @@ export default async function OpportunityDetailPage({
                   stageId: opp.stageId,
                   expectedCloseAt: opp.expectedCloseAt?.toISOString() ?? null,
                   ownerEmail: opp.owner?.email ?? null,
+                  finalQuote: opp.finalQuote ?? null,
+                  sow: opp.sow ?? [],
                 }}
                 stages={stages}
               />
@@ -137,8 +139,22 @@ export default async function OpportunityDetailPage({
               iconBg="bg-rose-50"
               title="Tasks"
               count={openTaskCount}
-              right={<IconBtn title="Add task"><Plus size={12} /></IconBtn>}
-            />
+              defaultOpen
+            >
+              <TasksSection
+                opportunityId={opp.id}
+                leadId={opp.leadId}
+                initialTasks={opp.activities
+                  .filter((a) => a.type === "TASK")
+                  .map((a) => ({
+                    id: a.id,
+                    title: a.title,
+                    body: a.body,
+                    dueAt: a.dueAt?.toISOString() ?? null,
+                    completedAt: a.completedAt?.toISOString() ?? null,
+                  }))}
+              />
+            </Section>
 
             {/* Company / parent lead */}
             <Section
@@ -199,7 +215,7 @@ export default async function OpportunityDetailPage({
                       c.email ||
                       "(no name)";
                     return (
-                      <li key={c.id} className="px-4 py-2.5 text-sm">
+                      <li key={c.id} className="px-4 py-2.5 text-sm group">
                         <div className="flex items-center gap-2">
                           <Link
                             href={`/app/contacts/${c.id}`}
@@ -207,18 +223,9 @@ export default async function OpportunityDetailPage({
                           >
                             {name}
                           </Link>
-                          <div className="flex items-center gap-2 text-muted">
-                            {c.email && (
-                              <a href={`mailto:${c.email}`} title={c.email} className="hover:text-ink">
-                                <Mail size={13} />
-                              </a>
-                            )}
-                            {c.phone && (
-                              <a href={`tel:${c.phone}`} title={c.phone} className="hover:text-ink">
-                                <Phone size={13} />
-                              </a>
-                            )}
-                          </div>
+                          <ContactInlineEdit
+                            contact={{ id: c.id, email: c.email, phone: c.phone }}
+                          />
                         </div>
                         {c.title && (
                           <div className="text-[11px] text-mutedSoft mt-0.5">{c.title}</div>

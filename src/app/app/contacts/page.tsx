@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { initials } from "@/lib/utils";
 import NewLeadButton from "@/components/NewLeadButton";
-import ColumnPicker from "@/components/ColumnPicker";
+import ContactsTable from "./ContactsTable";
 import type { LeadStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -43,15 +42,18 @@ export default async function ContactsPage({
     include: { lead: true },
   });
 
-  const columns = [
-    { key: "name",    label: "Name", locked: true },
-    { key: "company", label: "Company" },
-    { key: "title",   label: "Title" },
-    { key: "email",   label: "Email" },
-    { key: "phone",   label: "Phone" },
-    { key: "status",  label: "Lead status" },
-    { key: "updated", label: "Updated" },
-  ];
+  const rows = contacts.map((c) => ({
+    id: c.id,
+    firstName: c.firstName,
+    lastName: c.lastName,
+    email: c.email,
+    phone: c.phone,
+    title: c.title,
+    leadId: c.lead?.id ?? null,
+    leadName: c.lead?.name ?? null,
+    leadStatus: c.lead?.status ?? null,
+    updatedAt: c.updatedAt.toISOString(),
+  }));
 
   return (
     <div className="p-6 space-y-4 fade-in">
@@ -62,7 +64,9 @@ export default async function ContactsPage({
         </div>
         <div className="flex items-center gap-2">
           <form>
-            {activeStatus !== "ALL" && <input type="hidden" name="status" value={activeStatus} />}
+            {activeStatus !== "ALL" && (
+              <input type="hidden" name="status" value={activeStatus} />
+            )}
             <input
               name="q"
               placeholder="Search name, email, company…"
@@ -70,7 +74,6 @@ export default async function ContactsPage({
               className="input w-64"
             />
           </form>
-          <ColumnPicker storageKey="contacts" columns={columns} />
           <NewLeadButton />
         </div>
       </header>
@@ -80,13 +83,17 @@ export default async function ContactsPage({
           const params = new URLSearchParams();
           if (q) params.set("q", q);
           if (p.key !== "ALL") params.set("status", p.key);
-          const href = "/app/contacts" + (params.size ? "?" + params.toString() : "");
+          const href =
+            "/app/contacts" + (params.size ? "?" + params.toString() : "");
           const active = activeStatus === p.key;
           return (
             <Link
               key={p.key}
               href={href}
-              className={"pill " + (active ? (p.style ? p.style + " border" : "pill-active") : "")}
+              className={
+                "pill " +
+                (active ? (p.style ? p.style + " border" : "pill-active") : "")
+              }
             >
               {p.label}
             </Link>
@@ -94,66 +101,7 @@ export default async function ContactsPage({
         })}
       </div>
 
-      <div className="card overflow-hidden" data-col-scope="contacts">
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th data-col="name">Name</th>
-              <th data-col="company">Company</th>
-              <th data-col="title">Title</th>
-              <th data-col="email">Email</th>
-              <th data-col="phone">Phone</th>
-              <th data-col="status">Lead status</th>
-              <th data-col="updated">Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contacts.map((c) => {
-              const name =
-                [c.firstName, c.lastName].filter(Boolean).join(" ") || "(no name)";
-              return (
-                <tr key={c.id}>
-                  <td data-col="name">
-                    <Link className="flex items-center gap-2" href={`/app/contacts/${c.id}`}>
-                      <span className="size-6 rounded-full bg-accentSoft text-accent text-[10px] font-medium grid place-items-center">
-                        {initials(name, c.email)}
-                      </span>
-                      <span className="font-medium">{name}</span>
-                    </Link>
-                  </td>
-                  <td data-col="company">
-                    {c.lead ? (
-                      <Link href={`/app/leads/${c.lead.id}`} className="text-accent hover:underline">
-                        {c.lead.name}
-                      </Link>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </td>
-                  <td data-col="title">{c.title ?? "—"}</td>
-                  <td data-col="email" className="text-muted">{c.email ?? "—"}</td>
-                  <td data-col="phone" className="text-muted">{c.phone ?? "—"}</td>
-                  <td data-col="status">
-                    {c.lead ? (
-                      <span className="badge">{c.lead.status.replace("_", " ")}</span>
-                    ) : "—"}
-                  </td>
-                  <td data-col="updated" className="text-muted">
-                    {new Date(c.updatedAt).toLocaleDateString()}
-                  </td>
-                </tr>
-              );
-            })}
-            {contacts.length === 0 && (
-              <tr>
-                <td colSpan={7} className="text-center text-muted py-10">
-                  No contacts yet. Click "New lead" to create your first company + contact.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ContactsTable rows={rows} />
     </div>
   );
 }

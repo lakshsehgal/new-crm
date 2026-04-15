@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
 import ColumnPicker from "@/components/ColumnPicker";
+import { X, Trash2 } from "lucide-react";
 
 type Stage = { id: string; name: string; isWon: boolean; isLost: boolean };
 type Row = {
@@ -29,16 +32,22 @@ export default function OppListView({
   stages: Stage[];
   rows: Row[];
 }) {
-  const [stageFilter, setStageFilter] = useState<string>("all"); // all | stageId | open | won | lost
+  const [stageFilter, setStageFilter] = useState<string>("all");
   const [minValue, setMinValue] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [sortKey, setSortKey] = useState<SortKey>("updated");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkMoveStageId, setBulkMoveStageId] = useState<string>("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const router = useRouter();
 
   const filtered = useMemo(() => {
     let xs = rows;
     if (stageFilter === "open") {
-      const closedIds = new Set(stages.filter((s) => s.isWon || s.isLost).map((s) => s.id));
+      const closedIds = new Set(
+        stages.filter((s) => s.isWon || s.isLost).map((s) => s.id),
+      );
       xs = xs.filter((r) => !closedIds.has(r.stageId));
     } else if (stageFilter === "won") {
       const wonIds = new Set(stages.filter((s) => s.isWon).map((s) => s.id));
@@ -89,6 +98,67 @@ export default function OppListView({
     [stages],
   );
 
+  function toggleRow(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function toggleAll() {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((r) => r.id)));
+    }
+  }
+
+  async function bulkDelete() {
+    if (selected.size === 0) return;
+    if (!confirm(`Delete ${selected.size} opportunities? This cannot be undone.`)) return;
+    setBulkBusy(true);
+    try {
+      const ids = [...selected];
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch(`/api/internal/opportunities/${id}`, { method: "DELETE" }),
+        ),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) toast.error(`${failed} delete(s) failed`);
+      else toast.success(`Deleted ${ids.length} opportunities`);
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function bulkMoveStage() {
+    if (selected.size === 0 || !bulkMoveStageId) return;
+    setBulkBusy(true);
+    try {
+      const ids = [...selected];
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch(`/api/internal/opportunities/${id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ stageId: bulkMoveStageId }),
+          }),
+        ),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) toast.error(`${failed} update(s) failed`);
+      else toast.success(`Moved ${ids.length} opportunities`);
+      setSelected(new Set());
+      setBulkMoveStageId("");
+      router.refresh();
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   const columns = [
     { key: "name", label: "Opportunity", locked: true },
     { key: "company", label: "Company" },
@@ -99,6 +169,8 @@ export default function OppListView({
     { key: "lastTouch", label: "Last touchpoint" },
     { key: "updated", label: "Updated" },
   ];
+
+  const allChecked = filtered.length > 0 && selected.size === filtered.length;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -140,11 +212,61 @@ export default function OppListView({
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="px-6 py-2 border-b border-border bg-accentSoft flex items-center gap-3 fade-in">
+          <span className="text-[13px] font-medium text-accent">
+            {selected.size} selected
+          </span>
+          <select
+            className="input !w-44 !py-1"
+            value={bulkMoveStageId}
+            onChange={(e) => setBulkMoveStageId(e.target.value)}
+          >
+            <option value="">Move to stage…</option>
+            {stages.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn"
+            disabled={!bulkMoveStageId || bulkBusy}
+            onClick={bulkMoveStage}
+          >
+            Apply
+          </button>
+          <button
+            className="btn text-rose-600 hover:bg-rose-50"
+            onClick={bulkDelete}
+            disabled={bulkBusy}
+          >
+            <Trash2 size={13} /> Delete
+          </button>
+          <button
+            className="ml-auto size-7 grid place-items-center rounded text-muted hover:bg-white"
+            onClick={() => setSelected(new Set())}
+            title="Clear selection"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="flex-1 overflow-auto" data-col-scope="opportunities-list">
         <table className="tbl">
           <thead>
             <tr>
+              <th className="!w-8">
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  onChange={toggleAll}
+                />
+              </th>
+              <th className="!w-10 text-mutedSoft">#</th>
               <th data-col="name">Opportunity</th>
               <th data-col="company">Company</th>
               <th
@@ -169,10 +291,19 @@ export default function OppListView({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r) => {
+            {filtered.map((r, idx) => {
               const stage = stageById.get(r.stageId);
+              const checked = selected.has(r.id);
               return (
-                <tr key={r.id}>
+                <tr key={r.id} className={checked ? "bg-accentSoft/40" : ""}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleRow(r.id)}
+                    />
+                  </td>
+                  <td className="text-mutedSoft text-[12px]">{idx + 1}</td>
                   <td data-col="name">
                     <Link
                       href={`/app/opportunities/${r.id}`}
@@ -223,7 +354,7 @@ export default function OppListView({
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center text-muted py-10">
+                <td colSpan={10} className="text-center text-muted py-10">
                   No opportunities match this filter.
                 </td>
               </tr>

@@ -207,6 +207,8 @@ model Opportunity {
   owner           User?          @relation("OpportunityOwner", fields: [ownerId], references: [id])
   expectedCloseAt DateTime?
   closedAt        DateTime?
+  finalQuote      String?
+  sow             String[]       @default([])
   customData      Json           @default("{}")
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt

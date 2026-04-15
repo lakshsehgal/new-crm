@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -23,10 +23,6 @@ const API_PATH: Record<EntityKind, (id: string) => string> = {
   opportunity: (id) => `/api/internal/opportunities/${id}`,
 };
 
-/**
- * Inline list of workspace-wide custom fields for a record. Each row auto-saves
- * on blur. Values are merged into the record's customData JSON blob.
- */
 export default function CustomFieldsEditor({
   entityKind,
   entityId,
@@ -40,21 +36,21 @@ export default function CustomFieldsEditor({
 }) {
   const [data, setData] = useState<Record<string, any>>(initialData ?? {});
   const [savingKey, setSavingKey] = useState<string | null>(null);
-  const [, start] = useTransition();
   const router = useRouter();
 
   async function save(key: string, value: any) {
     setSavingKey(key);
     try {
+      const next = { ...data, [key]: value };
       const res = await fetch(API_PATH[entityKind](entityId), {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ customData: { ...data, [key]: value } }),
+        body: JSON.stringify({ customData: next }),
       });
       if (!res.ok) {
         toast.error("Failed to save");
       } else {
-        start(() => router.refresh());
+        router.refresh();
       }
     } finally {
       setSavingKey(null);
@@ -84,8 +80,11 @@ export default function CustomFieldsEditor({
             <FieldInput
               field={f}
               value={value}
+              onChange={(v) =>
+                setData((prev) => ({ ...prev, [f.key]: v }))
+              }
               onCommit={(v) => {
-                setData({ ...data, [f.key]: v });
+                setData((prev) => ({ ...prev, [f.key]: v }));
                 void save(f.key, v);
               }}
             />
@@ -96,21 +95,42 @@ export default function CustomFieldsEditor({
   );
 }
 
+/**
+ * Renders the right input for the field type. Text/URL/number debounce auto-save
+ * 600ms after the last change, plus an immediate commit on blur. Date/select/
+ * boolean commit on every change.
+ */
 function FieldInput({
   field,
   value,
+  onChange,
   onCommit,
 }: {
   field: CustomFieldDef;
   value: any;
+  onChange: (v: any) => void;
   onCommit: (v: any) => void;
 }) {
   const [local, setLocal] = useState<any>(value ?? "");
-  const placeholder = `Add ${field.label.toLowerCase()}…`;
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const commitOnBlur = () => {
-    if (local !== value) onCommit(local === "" ? null : local);
-  };
+  // Sync external value updates (e.g. after router.refresh)
+  useEffect(() => {
+    setLocal(value ?? "");
+  }, [value]);
+
+  function debouncedCommit(v: any, ms = 600) {
+    onChange(v);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onCommit(v), ms);
+  }
+
+  function commitNow(v: any) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    onCommit(v);
+  }
+
+  const placeholder = `Add ${field.label.toLowerCase()}…`;
 
   switch (field.type) {
     case "NUMBER":
@@ -120,8 +140,15 @@ function FieldInput({
           className="input !px-2 !py-1"
           placeholder={placeholder}
           value={local ?? ""}
-          onChange={(e) => setLocal(e.target.value === "" ? "" : Number(e.target.value))}
-          onBlur={commitOnBlur}
+          onChange={(e) => {
+            const v = e.target.value === "" ? null : Number(e.target.value);
+            setLocal(e.target.value);
+            debouncedCommit(v);
+          }}
+          onBlur={(e) => {
+            const v = e.target.value === "" ? null : Number(e.target.value);
+            commitNow(v);
+          }}
         />
       );
     case "DATE":
@@ -132,7 +159,7 @@ function FieldInput({
           value={local ?? ""}
           onChange={(e) => {
             setLocal(e.target.value);
-            onCommit(e.target.value || null);
+            commitNow(e.target.value || null);
           }}
         />
       );
@@ -144,7 +171,7 @@ function FieldInput({
             checked={!!local}
             onChange={(e) => {
               setLocal(e.target.checked);
-              onCommit(e.target.checked);
+              commitNow(e.target.checked);
             }}
           />
           <span>{field.label}</span>
@@ -157,7 +184,7 @@ function FieldInput({
           value={local ?? ""}
           onChange={(e) => {
             setLocal(e.target.value);
-            onCommit(e.target.value || null);
+            commitNow(e.target.value || null);
           }}
         >
           <option value="">—</option>
@@ -175,8 +202,11 @@ function FieldInput({
           className="input !px-2 !py-1"
           placeholder={placeholder}
           value={local ?? ""}
-          onChange={(e) => setLocal(e.target.value)}
-          onBlur={commitOnBlur}
+          onChange={(e) => {
+            setLocal(e.target.value);
+            debouncedCommit(e.target.value);
+          }}
+          onBlur={(e) => commitNow(e.target.value === "" ? null : e.target.value)}
         />
       );
     default:
@@ -185,8 +215,11 @@ function FieldInput({
           className="input !px-2 !py-1"
           placeholder={placeholder}
           value={local ?? ""}
-          onChange={(e) => setLocal(e.target.value)}
-          onBlur={commitOnBlur}
+          onChange={(e) => {
+            setLocal(e.target.value);
+            debouncedCommit(e.target.value);
+          }}
+          onBlur={(e) => commitNow(e.target.value === "" ? null : e.target.value)}
         />
       );
   }

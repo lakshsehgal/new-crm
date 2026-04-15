@@ -184,6 +184,16 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
 .section .sec-count {
   @apply inline-flex items-center justify-center text-[11px] font-semibold text-muted bg-white border border-border rounded-full min-w-5 h-5 px-1.5;
 }
+.section[open] {
+  border-color: theme("colors.accent / 35%");
+  box-shadow: 0 0 0 1px theme("colors.accent / 12%");
+}
+.section[open] > summary {
+  background: theme("colors.accentSoft");
+}
+.section[open] > summary .sec-title {
+  color: theme("colors.accent");
+}
 
 /* Modal overlay */
 .modal-overlay {
