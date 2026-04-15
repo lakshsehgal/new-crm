@@ -1,8 +1,10 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
+import Resend from "next-auth/providers/resend";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
+import { sendMagicLinkEmail } from "@/lib/mailer";
 import type { Role } from "@prisma/client";
 
 // Gmail scopes needed for inbox sync + send
@@ -17,12 +19,14 @@ const GMAIL_SCOPES = [
 
 const devPassword = process.env.DEV_LOGIN_PASSWORD;
 const hasGoogle = !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET;
+const hasResend = !!process.env.RESEND_API_KEY;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   // JWT strategy is required for the Credentials provider. OAuth accounts
   // (Google) still store refresh tokens in the Account table via the adapter,
-  // so Gmail sync keeps working.
+  // so Gmail sync keeps working. The Email provider uses the adapter's
+  // VerificationToken table regardless of session strategy.
   session: { strategy: "jwt" },
   trustHost: true,
   providers: [
@@ -37,6 +41,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 prompt: "consent",
                 scope: GMAIL_SCOPES,
               },
+            },
+          }),
+        ]
+      : []),
+    // Passwordless email magic link — no password hashes stored anywhere.
+    // Uses Resend via Auth.js's built-in Resend provider. We override
+    // sendVerificationRequest so our own branded email template ships
+    // instead of the default Auth.js one.
+    ...(hasResend
+      ? [
+          Resend({
+            apiKey: process.env.RESEND_API_KEY!,
+            from:
+              process.env.LEAD_NOTIFICATION_FROM ??
+              "Neuroid CRM <onboarding@resend.dev>",
+            maxAge: 30 * 60, // link expires after 30 minutes
+            async sendVerificationRequest({ identifier, url }) {
+              await sendMagicLinkEmail(identifier, url);
             },
           }),
         ]
@@ -109,6 +131,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: {
     signIn: "/signin",
+    verifyRequest: "/signin/check-email",
   },
 });
 
@@ -138,5 +161,6 @@ export async function requireAdmin(): Promise<SessionUser> {
 
 export const authProviders = {
   google: hasGoogle,
+  email: hasResend,
   dev: !!devPassword,
 };

@@ -141,3 +141,68 @@ function humanizeKey(key: string): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
 }
+
+/**
+ * Send a passwordless sign-in link via Resend. Used by NextAuth's email
+ * provider as sendVerificationRequest override.
+ *
+ * Throws if RESEND_API_KEY is missing or Resend returns non-2xx — NextAuth
+ * treats a throw as "email couldn't be sent" and shows the user an error.
+ */
+export async function sendMagicLinkEmail(
+  to: string,
+  magicLink: string,
+): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY not set");
+  const from =
+    process.env.LEAD_NOTIFICATION_FROM ??
+    "Neuroid CRM <onboarding@resend.dev>";
+  const subject = "Sign in to Neuroid CRM";
+  const html = renderMagicLinkEmail(magicLink, to);
+
+  const res = await fetch(RESEND_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ from, to, subject, html }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `Resend returned ${res.status}: ${body.slice(0, 300)}`,
+    );
+  }
+}
+
+function renderMagicLinkEmail(magicLink: string, to: string): string {
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:24px;background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+    <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e6e8ec;border-radius:12px;overflow:hidden">
+      <div style="padding:22px 24px;background:linear-gradient(135deg,#3b82f6 0%,#8b5cf6 60%,#ec4899 100%);color:#ffffff">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;opacity:0.85">Sign-in link</div>
+        <div style="font-size:20px;font-weight:700;margin-top:4px">Neuroid CRM</div>
+      </div>
+      <div style="padding:22px 24px;color:#0f1419;font-size:14px;line-height:1.55">
+        <p style="margin:0 0 14px 0">Hi,</p>
+        <p style="margin:0 0 14px 0">Click the button below to securely sign in to Neuroid CRM as <strong>${escapeHtml(to)}</strong>. The link is valid for the next 30 minutes.</p>
+        <p style="margin:0 0 22px 0">
+          <a href="${escapeHtml(magicLink)}"
+             style="display:inline-block;padding:12px 22px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:10px;font-size:14px;font-weight:700;box-shadow:0 6px 14px rgba(37,99,235,0.25)">
+            Sign in to Neuroid CRM →
+          </a>
+        </p>
+        <p style="margin:0 0 10px 0;color:#6b7280;font-size:12px">Button not working? Copy and paste this link:</p>
+        <p style="margin:0;word-break:break-all;background:#f7f8fa;border:1px solid #e6e8ec;border-radius:8px;padding:10px 12px;color:#374151;font-size:12px">${escapeHtml(magicLink)}</p>
+        <p style="margin:22px 0 0 0;color:#6b7280;font-size:12px">If you didn't try to sign in, you can safely ignore this email — no account changes happen until someone clicks the button.</p>
+      </div>
+      <div style="padding:12px 24px;border-top:1px solid #e6e8ec;color:#9ca3af;font-size:11px">
+        Sent by Neuroid CRM
+      </div>
+    </div>
+  </body>
+</html>`;
+}

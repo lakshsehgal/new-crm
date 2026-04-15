@@ -33,16 +33,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="px-3 pt-3.5 pb-3">
           <Link href="/app" className="brand-row" aria-label="Neuroid home">
             <span className="brand-mark">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-[16px]">
-                <path
-                  d="M5 19V5l9 12V5"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="19" cy="5" r="1.6" fill="currentColor" />
-              </svg>
+              {/* Swap /public/logos/logo.svg to rebrand. See /public/logos/README.md */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logos/logo.svg"
+                alt=""
+                className="size-7 rounded-lg object-cover"
+              />
             </span>
             <span className="brand-word">Neuroid</span>
           </Link>
