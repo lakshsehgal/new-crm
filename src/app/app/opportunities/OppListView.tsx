@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
 import ColumnPicker from "@/components/ColumnPicker";
-import { X, Trash2 } from "lucide-react";
+import { X, Trash2, Trophy, XCircle, Inbox, Circle } from "lucide-react";
 
 type Stage = { id: string; name: string; isWon: boolean; isLost: boolean };
 type Row = {
@@ -172,8 +172,55 @@ export default function OppListView({
 
   const allChecked = filtered.length > 0 && selected.size === filtered.length;
 
+  const statusCounts = useMemo(() => {
+    const closedIds = new Set(
+      stages.filter((s) => s.isWon || s.isLost).map((s) => s.id),
+    );
+    const wonIds = new Set(stages.filter((s) => s.isWon).map((s) => s.id));
+    const lostIds = new Set(stages.filter((s) => s.isLost).map((s) => s.id));
+    return {
+      all: rows.length,
+      open: rows.filter((r) => !closedIds.has(r.stageId)).length,
+      won: rows.filter((r) => wonIds.has(r.stageId)).length,
+      lost: rows.filter((r) => lostIds.has(r.stageId)).length,
+    };
+  }, [rows, stages]);
+
+  const STATUS_CHIPS: {
+    key: "all" | "open" | "won" | "lost";
+    label: string;
+    icon: React.ReactNode;
+    activeCls: string;
+  }[] = [
+    { key: "all",  label: "All",  icon: <Circle size={12} />,   activeCls: "" },
+    { key: "open", label: "Open", icon: <Inbox size={12} />,    activeCls: "bg-amber-50 text-amber-700 border-amber-300" },
+    { key: "won",  label: "Won",  icon: <Trophy size={12} />,   activeCls: "bg-emerald-50 text-emerald-700 border-emerald-300" },
+    { key: "lost", label: "Lost", icon: <XCircle size={12} />,  activeCls: "bg-rose-50 text-rose-700 border-rose-300" },
+  ];
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
+      {/* Status chips */}
+      <div className="px-6 pt-3 pb-1 bg-white flex items-center gap-1.5 flex-wrap">
+        {STATUS_CHIPS.map((c) => {
+          const active = stageFilter === c.key;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => setStageFilter(c.key)}
+              className={
+                "pill " + (active ? (c.activeCls || "pill-active") : "")
+              }
+            >
+              {c.icon}
+              <span>{c.label}</span>
+              <span className="text-[11px] opacity-70 ml-0.5">{statusCounts[c.key]}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filters */}
       <div className="px-6 py-3 border-b border-border bg-white flex items-center gap-2 flex-wrap">
         <input

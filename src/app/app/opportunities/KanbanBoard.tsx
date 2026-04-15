@@ -7,6 +7,7 @@ import {
   DndContext,
   DragEndEvent,
   DragStartEvent,
+  DragOverEvent,
   PointerSensor,
   useSensor,
   useSensors,
@@ -24,7 +25,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
-import { Mail, Phone, GripVertical, MessageSquarePlus, X } from "lucide-react";
+import { Mail, Phone, GripVertical, MessageSquarePlus, X, Trophy, XCircle } from "lucide-react";
 import { readKanbanAppearance, type KanbanAppearance } from "./KanbanOptions";
 
 type Stage = {
@@ -109,10 +110,26 @@ export default function KanbanBoard({
   stages: Stage[];
   initialCards: Card[];
 }) {
-  const [stages, setStages] = useState(initialStages);
+  // Split into board (open) stages + closed (won/lost) stages — only open
+  // stages become columns; won/lost become drop zones at the bottom.
+  const boardStages = useMemo(
+    () => initialStages.filter((s) => !s.isWon && !s.isLost),
+    [initialStages],
+  );
+  const wonStage = useMemo(
+    () => initialStages.find((s) => s.isWon) ?? null,
+    [initialStages],
+  );
+  const lostStage = useMemo(
+    () => initialStages.find((s) => s.isLost) ?? null,
+    [initialStages],
+  );
+
+  const [stages, setStages] = useState(boardStages);
   const [cards, setCards] = useState(initialCards);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
+  const [activeOverId, setActiveOverId] = useState<string | null>(null);
   const [appearance, setAppearance] = useState<KanbanAppearance>(DEFAULT_APPEARANCE);
 
   // Hydrate appearance from localStorage + listen for changes from the Options popover
@@ -129,14 +146,21 @@ export default function KanbanBoard({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
+  // Only show cards in open stages on the board. Won/Lost are surfaced in
+  // the List view instead (filter chips).
+  const visibleCards = useMemo(() => {
+    const openIds = new Set(stages.map((s) => s.id));
+    return cards.filter((c) => openIds.has(c.stageId));
+  }, [cards, stages]);
+
   const byStage = useMemo(() => {
     const map = new Map<string, Card[]>();
     stages.forEach((s) => map.set(s.id, []));
-    [...cards]
+    [...visibleCards]
       .sort((a, b) => a.stageOrder - b.stageOrder)
       .forEach((c) => map.get(c.stageId)?.push(c));
     return map;
-  }, [stages, cards]);
+  }, [stages, visibleCards]);
 
   async function persistCardMove(cardId: string, stageId: string, stageOrder: number) {
     const res = await fetch(`/api/internal/opportunities/${cardId}/move`, {
@@ -166,11 +190,16 @@ export default function KanbanBoard({
     else if (id.startsWith("stage:")) setActiveStageId(id.slice(6));
   }
 
+  function onDragOver(e: DragOverEvent) {
+    setActiveOverId(e.over?.id ? String(e.over.id) : null);
+  }
+
   function onDragEnd(e: DragEndEvent) {
     const activeId = String(e.active.id);
     const overId = e.over?.id ? String(e.over.id) : null;
     setActiveCardId(null);
     setActiveStageId(null);
+    setActiveOverId(null);
     if (!overId) return;
 
     if (activeId.startsWith("stage:") && overId.startsWith("stage:")) {
@@ -187,6 +216,27 @@ export default function KanbanBoard({
     const cardId = activeId.slice(5);
     const active = cards.find((c) => c.id === cardId);
     if (!active) return;
+
+    // Drop onto the "Mark as Won" or "Mark as Lost" rail
+    if (overId === "close:won" || overId === "close:lost") {
+      const target = overId === "close:won" ? wonStage : lostStage;
+      if (!target) {
+        toast.error(
+          `No ${overId === "close:won" ? "Won" : "Lost"} stage in this pipeline`,
+        );
+        return;
+      }
+      // Locally update stageId so the card disappears from the board
+      const renumbered = cards.map((c) =>
+        c.id === cardId ? { ...c, stageId: target.id, stageOrder: 9999 } : c,
+      );
+      setCards(renumbered);
+      toast.success(
+        overId === "close:won" ? "Marked as Won 🎉" : "Marked as Lost",
+      );
+      void persistCardMove(cardId, target.id, 0);
+      return;
+    }
 
     let destStageId = active.stageId;
     let destIndex = 0;
@@ -215,20 +265,22 @@ export default function KanbanBoard({
 
   const activeCard = activeCardId ? cards.find((c) => c.id === activeCardId) : null;
   const activeStage = activeStageId ? stages.find((s) => s.id === activeStageId) : null;
+  const isDraggingCard = !!activeCard;
 
   return (
-    <div className="flex-1 overflow-hidden">
+    <div className="flex-1 overflow-hidden flex flex-col">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={onDragStart}
+        onDragOver={onDragOver}
         onDragEnd={onDragEnd}
       >
         <SortableContext
           items={stages.map((s) => "stage:" + s.id)}
           strategy={horizontalListSortingStrategy}
         >
-          <div className="kanban h-full">
+          <div className="kanban flex-1 min-h-0 !h-auto">
             {stages.map((stage) => (
               <SortableStageColumn
                 key={stage.id}
@@ -240,6 +292,13 @@ export default function KanbanBoard({
             ))}
           </div>
         </SortableContext>
+
+        <CloseDropZones
+          active={isDraggingCard}
+          activeOverId={activeOverId}
+          hasWon={!!wonStage}
+          hasLost={!!lostStage}
+        />
 
         <DragOverlay dropAnimation={{ duration: 180 }}>
           {activeCard && (
@@ -256,6 +315,78 @@ export default function KanbanBoard({
           )}
         </DragOverlay>
       </DndContext>
+    </div>
+  );
+}
+
+function CloseDropZones({
+  active,
+  activeOverId,
+  hasWon,
+  hasLost,
+}: {
+  active: boolean;
+  activeOverId: string | null;
+  hasWon: boolean;
+  hasLost: boolean;
+}) {
+  const { setNodeRef: setWonRef, isOver: overWon } = useDroppable({
+    id: "close:won",
+  });
+  const { setNodeRef: setLostRef, isOver: overLost } = useDroppable({
+    id: "close:lost",
+  });
+
+  return (
+    <div
+      className={
+        "close-rails " +
+        (active ? "close-rails-active" : "")
+      }
+      aria-hidden={!active}
+    >
+      <div
+        ref={setWonRef}
+        className={
+          "close-rail close-rail-won " +
+          (overWon ? "is-over " : "") +
+          (!hasWon ? "opacity-40 " : "")
+        }
+        title={hasWon ? "Drop to mark as Won" : "No Won stage in this pipeline"}
+      >
+        <div className="close-rail-inner">
+          <Trophy size={16} />
+          <div className="close-rail-text">
+            <div className="close-rail-label">Mark as Won</div>
+            <div className="close-rail-sub">
+              {activeOverId === "close:won"
+                ? "Release to close as Won"
+                : "Drop here to close this deal"}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        ref={setLostRef}
+        className={
+          "close-rail close-rail-lost " +
+          (overLost ? "is-over " : "") +
+          (!hasLost ? "opacity-40 " : "")
+        }
+        title={hasLost ? "Drop to mark as Lost" : "No Lost stage in this pipeline"}
+      >
+        <div className="close-rail-inner">
+          <XCircle size={16} />
+          <div className="close-rail-text">
+            <div className="close-rail-label">Mark as Lost</div>
+            <div className="close-rail-sub">
+              {activeOverId === "close:lost"
+                ? "Release to close as Lost"
+                : "Drop here to close this deal"}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
