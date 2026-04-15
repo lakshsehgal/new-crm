@@ -16,15 +16,26 @@ const optionalEmail = z.preprocess(
 );
 // URLs from FB lead forms are often typed as "acme.com" or "www.acme.com"
 // without a scheme. Normalize: strip whitespace, drop empty, auto-prefix
-// https:// when the scheme is missing, then validate.
+// https:// when the scheme is missing, then validate. Anything that can't
+// be coerced into a valid URL is silently dropped (treated as "not
+// provided") so a junk URL value doesn't 400 the whole lead — real leads
+// sometimes have "TEST" or similar garbage in the website field.
 const optionalUrl = z.preprocess((v) => {
-  if (typeof v !== "string") return v;
+  if (typeof v !== "string") return undefined;
   const trimmed = v.trim();
   if (trimmed === "") return undefined;
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  // Looks like a bare domain (contains a dot, no spaces) → prefix https://
-  if (/^[^\s]+\.[^\s]+$/.test(trimmed)) return `https://${trimmed}`;
-  return trimmed; // let Zod reject it and surface a 400
+  let candidate = trimmed;
+  if (!/^https?:\/\//i.test(candidate)) {
+    if (/^[^\s]+\.[^\s]+$/.test(candidate)) candidate = `https://${candidate}`;
+    else return undefined; // doesn't look like a domain → drop
+  }
+  try {
+    // Final sanity check via WHATWG URL parser
+    new URL(candidate);
+    return candidate;
+  } catch {
+    return undefined;
+  }
 }, z.string().url().optional());
 const optionalStr = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
