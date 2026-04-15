@@ -71,6 +71,32 @@ function brandFromUrl(raw: string): string | null {
   }
 }
 
+/**
+ * Fold flat keys of the form `customData[key]` or `customData.key` into
+ * a proper nested `customData: {...}` object. Same for contactCustomData.
+ * This tolerates webhook builders that don't send real nested JSON (e.g.
+ * Zapier's POST action with Unflatten off, Make.com, some low-code tools).
+ */
+function normalizeNestedKeys(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const body = { ...(raw as Record<string, unknown>) };
+  const targets = ["customData", "contactCustomData"] as const;
+  for (const target of targets) {
+    const nested = (body[target] as Record<string, unknown>) ?? {};
+    const collected: Record<string, unknown> = { ...nested };
+    const re = new RegExp(`^${target}[\\[.]([^\\].]+)\\]?$`);
+    for (const [k, v] of Object.entries(body)) {
+      const m = k.match(re);
+      if (m) {
+        collected[m[1]!] = v;
+        delete body[k];
+      }
+    }
+    if (Object.keys(collected).length > 0) body[target] = collected;
+  }
+  return body;
+}
+
 /** Drop entries whose value is null / undefined / empty string. */
 function stripEmpty(obj: Record<string, unknown> | undefined): Record<string, unknown> {
   if (!obj) return {};
@@ -104,6 +130,12 @@ export async function POST(req: NextRequest) {
   } catch {
     return Response.json({ error: "Body must be valid JSON" }, { status: 400 });
   }
+
+  // Zapier/webhook builders sometimes send customData as flat bracket keys
+  // ('customData[current_revenue]': '...') instead of a nested object. Fold
+  // those into a real nested object before Zod validation so the API is
+  // tolerant of either shape.
+  raw = normalizeNestedKeys(raw);
 
   let data: z.infer<typeof Body>;
   try {
