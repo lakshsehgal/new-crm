@@ -13,10 +13,18 @@ const optionalEmail = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
   z.string().email().optional(),
 );
-const optionalUrl = z.preprocess(
-  (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-  z.string().url().optional(),
-);
+// URLs from FB lead forms are often typed as "acme.com" or "www.acme.com"
+// without a scheme. Normalize: strip whitespace, drop empty, auto-prefix
+// https:// when the scheme is missing, then validate.
+const optionalUrl = z.preprocess((v) => {
+  if (typeof v !== "string") return v;
+  const trimmed = v.trim();
+  if (trimmed === "") return undefined;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  // Looks like a bare domain (contains a dot, no spaces) → prefix https://
+  if (/^[^\s]+\.[^\s]+$/.test(trimmed)) return `https://${trimmed}`;
+  return trimmed; // let Zod reject it and surface a 400
+}, z.string().url().optional());
 const optionalStr = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
   z.string().optional(),
