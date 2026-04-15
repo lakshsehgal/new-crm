@@ -89,7 +89,7 @@ export default async function OpportunityDetailPage({
   }));
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-full">
       <OpportunityHeader
         oppId={opp.id}
         oppName={opp.name}

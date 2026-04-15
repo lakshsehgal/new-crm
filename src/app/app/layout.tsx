@@ -19,6 +19,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { initials } from "@/lib/utils";
+import GlobalSearch from "@/components/GlobalSearch";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -130,7 +131,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      <main className="min-w-0 bg-white">{children}</main>
+      <main className="min-w-0 bg-white flex flex-col">
+        <header className="h-12 border-b border-border flex items-center px-4 flex-shrink-0 bg-white">
+          <GlobalSearch />
+        </header>
+        <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
+      </main>
     </div>
   );
 }

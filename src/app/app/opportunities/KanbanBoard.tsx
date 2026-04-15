@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -24,7 +24,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
-import { Mail, Phone, GripVertical } from "lucide-react";
+import { Mail, Phone, GripVertical, MessageSquarePlus, X } from "lucide-react";
+import { readKanbanAppearance, type KanbanAppearance } from "./KanbanOptions";
 
 type Stage = {
   id: string;
@@ -38,6 +39,7 @@ type Card = {
   id: string;
   leadId: string;
   leadName: string;
+  leadStatus: string;
   name: string;
   value: string;
   currency: string;
@@ -47,6 +49,8 @@ type Card = {
   contactName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  lastNote: string | null;
+  lastTouchpointAt: string | null;
   ownerInitials: string | null;
 };
 
@@ -68,6 +72,34 @@ function pickLogoColor(seed: string): string {
   return LOGO_COLORS[h % LOGO_COLORS.length];
 }
 
+const STATUS_BADGE: Record<string, string> = {
+  POTENTIAL: "bg-amber-50 text-amber-700 border-amber-200",
+  QUALIFIED: "bg-blue-50 text-blue-700 border-blue-200",
+  CUSTOMER: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  BAD_FIT: "bg-rose-50 text-rose-700 border-rose-200",
+  CHURNED: "bg-gray-100 text-gray-600 border-gray-200",
+};
+
+function relTime(iso: string): string {
+  const t = new Date(iso).getTime();
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 60000);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const d = Math.floor(hr / 24);
+  if (d < 30) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+const DEFAULT_APPEARANCE: KanbanAppearance = {
+  density: "full",
+  showLeadStatus: false,
+  showContact: true,
+  showLastNote: false,
+  showLastTouchpoint: false,
+};
+
 export default function KanbanBoard({
   pipelineId,
   stages: initialStages,
@@ -81,6 +113,17 @@ export default function KanbanBoard({
   const [cards, setCards] = useState(initialCards);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
+  const [appearance, setAppearance] = useState<KanbanAppearance>(DEFAULT_APPEARANCE);
+
+  // Hydrate appearance from localStorage + listen for changes from the Options popover
+  useEffect(() => {
+    setAppearance(readKanbanAppearance());
+    function onChange() {
+      setAppearance(readKanbanAppearance());
+    }
+    window.addEventListener("newcrm:kanban-appearance", onChange);
+    return () => window.removeEventListener("newcrm:kanban-appearance", onChange);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -130,7 +173,6 @@ export default function KanbanBoard({
     setActiveStageId(null);
     if (!overId) return;
 
-    // Stage reorder
     if (activeId.startsWith("stage:") && overId.startsWith("stage:")) {
       const from = stages.findIndex((s) => "stage:" + s.id === activeId);
       const to = stages.findIndex((s) => "stage:" + s.id === overId);
@@ -141,7 +183,6 @@ export default function KanbanBoard({
       return;
     }
 
-    // Card move
     if (!activeId.startsWith("card:")) return;
     const cardId = activeId.slice(5);
     const active = cards.find((c) => c.id === cardId);
@@ -194,6 +235,7 @@ export default function KanbanBoard({
                 stage={stage}
                 cards={byStage.get(stage.id) ?? []}
                 isGhost={activeStageId === stage.id}
+                appearance={appearance}
               />
             ))}
           </div>
@@ -202,7 +244,7 @@ export default function KanbanBoard({
         <DragOverlay dropAnimation={{ duration: 180 }}>
           {activeCard && (
             <div className="opp-card dragging" style={{ width: 260 }}>
-              <CardContent card={activeCard} />
+              <CardContent card={activeCard} appearance={appearance} />
             </div>
           )}
           {activeStage && (
@@ -222,10 +264,12 @@ function SortableStageColumn({
   stage,
   cards,
   isGhost,
+  appearance,
 }: {
   stage: Stage;
   cards: Card[];
   isGhost: boolean;
+  appearance: KanbanAppearance;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: "stage:" + stage.id });
@@ -236,7 +280,12 @@ function SortableStageColumn({
   };
   return (
     <div ref={setNodeRef} style={style} className="kanban-col">
-      <StageColumnContent stage={stage} cards={cards} dragHandle={{ attributes, listeners }} />
+      <StageColumnContent
+        stage={stage}
+        cards={cards}
+        dragHandle={{ attributes, listeners }}
+        appearance={appearance}
+      />
     </div>
   );
 }
@@ -245,10 +294,12 @@ function StageColumnContent({
   stage,
   cards,
   dragHandle,
+  appearance,
 }: {
   stage: Stage;
   cards: Card[];
   dragHandle: { attributes: any; listeners: any };
+  appearance: KanbanAppearance;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "drop:" + stage.id });
   const total = cards.reduce((sum, c) => sum + Number(c.value || 0), 0);
@@ -286,14 +337,20 @@ function StageColumnContent({
           </div>
         )}
         {cards.map((c) => (
-          <DraggableKanbanCard key={c.id} card={c} />
+          <DraggableKanbanCard key={c.id} card={c} appearance={appearance} />
         ))}
       </div>
     </>
   );
 }
 
-function DraggableKanbanCard({ card }: { card: Card }) {
+function DraggableKanbanCard({
+  card,
+  appearance,
+}: {
+  card: Card;
+  appearance: KanbanAppearance;
+}) {
   const router = useRouter();
   const { setNodeRef, attributes, listeners, transform, isDragging } = useDraggable({
     id: "card:" + card.id,
@@ -309,35 +366,50 @@ function DraggableKanbanCard({ card }: { card: Card }) {
       {...listeners}
       {...attributes}
       onClick={(e) => {
-        // The drag sensor only activates after 5px of pointer movement; a
-        // plain click on the card falls through here and navigates.
         if (isDragging) return;
         const target = e.target as HTMLElement;
-        // Don't hijack internal anchors (e.g. the company-name Link)
-        if (target.closest("a")) return;
+        if (target.closest("a") || target.closest("[data-stop-card-click]")) return;
         router.push(`/app/opportunities/${card.id}`);
       }}
       className={"opp-card " + (isDragging ? "opacity-30" : "")}
     >
-      <CardContent card={card} />
+      <CardContent card={card} appearance={appearance} />
     </div>
   );
 }
 
-function CardContent({ card }: { card: Card }) {
+function CardContent({
+  card,
+  appearance,
+}: {
+  card: Card;
+  appearance: KanbanAppearance;
+}) {
   const logoColor = pickLogoColor(card.leadName);
   const letter = (card.leadName.trim()[0] ?? "?").toUpperCase();
+  const minimal = appearance.density === "minimal";
+
   return (
     <>
       <div className="title-row">
         <span className={`logo ${logoColor}`}>{letter}</span>
         <Link
           href={`/app/leads/${card.leadId}`}
-          className="truncate hover:underline"
+          className="truncate hover:underline flex-1"
           onClick={(e) => e.stopPropagation()}
         >
           {card.leadName}
         </Link>
+        {appearance.showLeadStatus && (
+          <span
+            className={
+              "badge text-[9px] px-1 py-0 " +
+              (STATUS_BADGE[card.leadStatus] ?? "")
+            }
+          >
+            {card.leadStatus.replace("_", " ")}
+          </span>
+        )}
       </div>
 
       <div className="meta-row">
@@ -348,9 +420,12 @@ function CardContent({ card }: { card: Card }) {
           </div>
           <div className="value-prob">{card.probability}%</div>
         </div>
+        <div data-stop-card-click>
+          <QuickNote oppId={card.id} />
+        </div>
       </div>
 
-      {card.contactName && (
+      {!minimal && appearance.showContact && card.contactName && (
         <div className="footer-row">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span className="truncate flex-1 text-ink/80">{card.contactName}</span>
@@ -360,6 +435,126 @@ function CardContent({ card }: { card: Card }) {
           </div>
         </div>
       )}
+
+      {!minimal && appearance.showLastNote && card.lastNote && (
+        <div className="footer-row">
+          <span className="text-mutedSoft uppercase text-[9px] tracking-wide">
+            Note
+          </span>
+          <span className="text-[12px] text-muted truncate flex-1">
+            {card.lastNote}
+          </span>
+        </div>
+      )}
+
+      {!minimal && appearance.showLastTouchpoint && card.lastTouchpointAt && (
+        <div className="footer-row">
+          <span className="text-mutedSoft uppercase text-[9px] tracking-wide">
+            Last touch
+          </span>
+          <span className="text-[12px] text-muted">
+            {relTime(card.lastTouchpointAt)}
+          </span>
+        </div>
+      )}
     </>
+  );
+}
+
+function QuickNote({ oppId }: { oppId: string }) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const router = useRouter();
+
+  async function save() {
+    if (!note.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/internal/activities", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          opportunityId: oppId,
+          type: "NOTE",
+          title: note.slice(0, 80),
+          body: note,
+        }),
+      });
+      if (!res.ok) {
+        toast.error("Failed to add note");
+        return;
+      }
+      toast.success("Note added");
+      setNote("");
+      setOpen(false);
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="relative" data-stop-card-click>
+      <button
+        type="button"
+        className="size-6 grid place-items-center rounded text-mutedSoft hover:bg-surface hover:text-ink"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }}
+        title="Quick note"
+      >
+        <MessageSquarePlus size={13} />
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-1 card shadow-pop z-30 p-3 w-[260px] pop-in"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] uppercase tracking-wide text-mutedSoft font-semibold">
+              Quick note
+            </span>
+            <button
+              type="button"
+              className="size-5 grid place-items-center rounded text-muted hover:bg-surface"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setOpen(false);
+              }}
+            >
+              <X size={12} />
+            </button>
+          </div>
+          <textarea
+            autoFocus
+            className="input min-h-[80px] text-[13px]"
+            placeholder="Type a quick note…"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                void save();
+              }
+            }}
+          />
+          <div className="flex justify-between items-center mt-2">
+            <span className="text-[10px] text-mutedSoft">⌘+Enter to save</span>
+            <button
+              className="btn-primary"
+              disabled={saving || !note.trim()}
+              onClick={save}
+              type="button"
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

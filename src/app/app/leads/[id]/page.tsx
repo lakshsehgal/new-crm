@@ -86,7 +86,7 @@ export default async function LeadDetailPage({
   ).length;
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-full">
       <LeadHeader lead={lead as any} />
 
       <div className="grid grid-cols-[380px_1fr] flex-1 overflow-hidden">
