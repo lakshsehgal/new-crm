@@ -8,6 +8,20 @@
 
 const RESEND_URL = "https://api.resend.com/emails";
 
+/**
+ * Resolve the 'From' header for transactional emails. Preference order:
+ *   1. EMAIL_FROM        (canonical)
+ *   2. LEAD_NOTIFICATION_FROM (earlier name, kept for back-compat)
+ *   3. Resend's shared testing sender (only deliverable to the account owner)
+ */
+function emailFromAddress(): string {
+  return (
+    process.env.EMAIL_FROM ??
+    process.env.LEAD_NOTIFICATION_FROM ??
+    "Neuroid CRM <onboarding@resend.dev>"
+  );
+}
+
 export type LeadAlertPayload = {
   leadId: string;
   leadName: string;
@@ -43,9 +57,7 @@ export async function notifyLeadCreated(
     return;
   }
 
-  const from =
-    process.env.LEAD_NOTIFICATION_FROM ??
-    "Neuroid CRM <onboarding@resend.dev>";
+  const from = emailFromAddress();
 
   const subject = `🎯 New lead: ${payload.leadName}`;
   const html = renderLeadEmail(payload);
@@ -155,9 +167,7 @@ export async function sendMagicLinkEmail(
 ): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("RESEND_API_KEY not set");
-  const from =
-    process.env.LEAD_NOTIFICATION_FROM ??
-    "Neuroid CRM <onboarding@resend.dev>";
+  const from = emailFromAddress();
   const subject = "Sign in to Neuroid CRM";
   const html = renderMagicLinkEmail(magicLink, to);
 
@@ -190,9 +200,7 @@ export async function sendInviteEmail(params: {
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("RESEND_API_KEY not set");
-  const from =
-    process.env.LEAD_NOTIFICATION_FROM ??
-    "Neuroid CRM <onboarding@resend.dev>";
+  const from = emailFromAddress();
   const subject = `${params.inviterName ?? params.inviterEmail} invited you to Neuroid CRM`;
   const html = renderInviteEmail(params);
 

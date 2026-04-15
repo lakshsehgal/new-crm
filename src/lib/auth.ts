@@ -54,6 +54,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           Resend({
             apiKey: process.env.RESEND_API_KEY!,
             from:
+              process.env.EMAIL_FROM ??
               process.env.LEAD_NOTIFICATION_FROM ??
               "Neuroid CRM <onboarding@resend.dev>",
             maxAge: 30 * 60, // link expires after 30 minutes
