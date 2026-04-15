@@ -519,6 +519,11 @@ function CardContent({
   const logoColor = pickLogoColor(card.leadName);
   const letter = (card.leadName.trim()[0] ?? "?").toUpperCase();
   const minimal = appearance.density === "minimal";
+  // If the opp name is the same as the company (default from auto-fill),
+  // don't repeat the company underneath — show just the opp name.
+  const sameName =
+    card.name.trim().toLowerCase() === card.leadName.trim().toLowerCase();
+  const hasValue = Number(card.value) > 0;
 
   return (
     <>
@@ -529,7 +534,7 @@ function CardContent({
           className="truncate hover:underline flex-1"
           onClick={(e) => e.stopPropagation()}
         >
-          {card.leadName}
+          {card.name}
         </Link>
         {appearance.showLeadStatus && (
           <span
@@ -543,13 +548,25 @@ function CardContent({
         )}
       </div>
 
+      {!sameName && (
+        <div className="mt-0.5 pl-[22px] text-[11.5px] text-muted truncate">
+          {card.leadName}
+        </div>
+      )}
+
       <div className="meta-row">
         <div className="avatar">{card.ownerInitials ?? "–"}</div>
         <div className="value-col">
-          <div className="value-amt truncate">
-            {Number(card.value) > 0 ? formatMoney(card.value) : card.name}
-          </div>
-          <div className="value-prob">{card.probability}%</div>
+          {hasValue ? (
+            <>
+              <div className="value-amt truncate">{formatMoney(card.value)}</div>
+              <div className="value-prob">{card.probability}%</div>
+            </>
+          ) : (
+            <div className="value-prob">
+              {card.probability}% probability
+            </div>
+          )}
         </div>
         <div data-stop-card-click>
           <QuickNote oppId={card.id} />
