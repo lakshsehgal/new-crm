@@ -369,15 +369,6 @@ function SowMultiSelect({
   onCommit: (v: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onDoc(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
 
   function toggle(opt: string) {
     const next = value.includes(opt)
@@ -387,65 +378,98 @@ function SowMultiSelect({
   }
 
   return (
-    <div className="px-3 py-2 relative" ref={ref}>
-      <div className="flex items-center gap-2.5">
-        <span className="text-mutedSoft flex-shrink-0">
-          <ListTodo size={13} />
-        </span>
-        <button
-          className="flex-1 text-left text-[13px] flex items-center gap-1 flex-wrap min-h-[24px]"
-          onClick={() => setOpen((o) => !o)}
-        >
-          {value.length === 0 ? (
-            <span className="text-mutedSoft">Pick SOW…</span>
-          ) : (
-            value.map((v) => (
-              <span
-                key={v}
-                className="badge bg-accentSoft text-accent border-accent/30"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggle(v);
-                }}
-              >
-                {v}
-                <X size={10} />
-              </span>
-            ))
-          )}
-        </button>
-        {saving && <span className="text-[10px] text-mutedSoft">saving…</span>}
-      </div>
-      {open && (
-        <div className="absolute left-3 right-3 top-full mt-1 card shadow-pop z-30 py-1 max-h-64 overflow-y-auto pop-in">
-          {SOW_OPTIONS.map((opt) => {
-            const active = value.includes(opt);
-            return (
-              <button
-                key={opt}
-                onClick={() => toggle(opt)}
-                className="w-full text-left text-sm px-3 py-1.5 flex items-center gap-2 hover:bg-surface"
-              >
+    <>
+      <div className="px-3 py-2">
+        <div className="flex items-center gap-2.5">
+          <span className="text-mutedSoft flex-shrink-0">
+            <ListTodo size={13} />
+          </span>
+          <button
+            className="flex-1 text-left text-[13px] flex items-center gap-1 flex-wrap min-h-[24px] hover:bg-surface/70 rounded px-1 py-0.5 -ml-1 transition-colors"
+            onClick={() => setOpen(true)}
+          >
+            {value.length === 0 ? (
+              <span className="text-mutedSoft">Pick SOW…</span>
+            ) : (
+              value.map((v) => (
                 <span
-                  className={
-                    "size-4 rounded border grid place-items-center " +
-                    (active
-                      ? "bg-accent border-accent text-white"
-                      : "border-border")
-                  }
+                  key={v}
+                  className="badge bg-accentSoft text-accent border-accent/30"
                 >
-                  {active && <Check size={10} />}
+                  {v}
                 </span>
-                <span className="flex-1">{opt}</span>
+              ))
+            )}
+          </button>
+          {saving && <span className="text-[10px] text-mutedSoft">saving…</span>}
+        </div>
+        <div className="text-[10.5px] uppercase tracking-wide text-mutedSoft pl-6 mt-1">
+          SOW
+        </div>
+      </div>
+
+      {open && (
+        <div className="modal-overlay" onClick={() => setOpen(false)}>
+          <div
+            className="modal-card w-full max-w-md p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold flex items-center gap-2">
+                <ListTodo size={16} className="text-mutedSoft" />
+                Statement of Work
+              </h2>
+              <button
+                className="size-7 grid place-items-center rounded text-muted hover:bg-surface"
+                onClick={() => setOpen(false)}
+              >
+                <X size={16} />
               </button>
-            );
-          })}
+            </div>
+            <p className="text-[12px] text-muted mt-1">
+              Pick everything that's part of this engagement. Selections save
+              instantly.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-1">
+              {SOW_OPTIONS.map((opt) => {
+                const active = value.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => toggle(opt)}
+                    className={
+                      "w-full text-left text-sm px-3 py-2 rounded flex items-center gap-2 " +
+                      (active
+                        ? "bg-accentSoft"
+                        : "hover:bg-surface")
+                    }
+                  >
+                    <span
+                      className={
+                        "size-4 rounded border grid place-items-center flex-shrink-0 " +
+                        (active
+                          ? "bg-accent border-accent text-white"
+                          : "border-border")
+                      }
+                    >
+                      {active && <Check size={10} />}
+                    </span>
+                    <span className={"flex-1 " + (active ? "font-medium" : "")}>
+                      {opt}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex items-center justify-between text-[12px] text-muted">
+              <span>{value.length} selected</span>
+              <button className="btn-primary" onClick={() => setOpen(false)}>
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
-      {/* Label below since the SOW row reads as a chip group */}
-      <div className="text-[10.5px] uppercase tracking-wide text-mutedSoft pl-6 mt-1">
-        SOW
-      </div>
-    </div>
+    </>
   );
 }

@@ -71,13 +71,23 @@ export default function OpportunityHeader({
 
   return (
     <div className="h-16 border-b border-border px-5 flex items-center gap-3 bg-white flex-shrink-0">
-      <Link
-        href={`/app/leads/${leadId}`}
+      <button
+        type="button"
+        onClick={() => {
+          // Prefer history-back so we return to wherever the user came from
+          // (kanban, list, search, lead). Fall back to /app/opportunities
+          // when history is empty (deep link / new tab).
+          if (typeof window !== "undefined" && window.history.length > 1) {
+            router.back();
+          } else {
+            router.push("/app/opportunities");
+          }
+        }}
         className="size-7 grid place-items-center rounded-md text-muted hover:bg-surface hover:text-ink"
-        title="Back to lead"
+        title="Back"
       >
         <ArrowLeft size={16} />
-      </Link>
+      </button>
       <div className="size-9 rounded-md bg-amber-50 text-amber-600 grid place-items-center">
         <Trophy size={16} />
       </div>
