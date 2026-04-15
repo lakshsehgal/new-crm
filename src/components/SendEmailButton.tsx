@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Mail, X } from "lucide-react";
+import RichTextEditor from "@/components/RichTextEditor";
 
 type Contact = {
   id: string;
@@ -72,7 +73,11 @@ export default function SendEmailButton({
       email: currentContact?.email ?? defaultContext.email,
     };
     setSubject(substitute(t.subject, ctx));
-    setBody(substitute(t.body, ctx));
+    // Convert newlines in saved template bodies to <br> so the RTE renders
+    // them, since the RTE body is HTML.
+    setBody(
+      substitute(t.body, ctx).replace(/\n/g, "<br>"),
+    );
   }
 
   async function send() {
@@ -93,7 +98,7 @@ export default function SendEmailButton({
           contactId: currentContact.id,
           to: currentContact.email,
           subject,
-          bodyText: body,
+          bodyHtml: body,
         }),
       });
       if (!res.ok) {
@@ -190,15 +195,16 @@ export default function SendEmailButton({
               />
             </label>
 
-            <label className="block mt-3">
+            <div className="mt-3">
               <span className="label">Body</span>
-              <textarea
-                className="input mt-1 min-h-[220px] font-sans"
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="Write your message…"
-              />
-            </label>
+              <div className="mt-1">
+                <RichTextEditor
+                  value={body}
+                  onChange={setBody}
+                  placeholder="Write your message…"
+                />
+              </div>
+            </div>
 
             <div className="flex justify-end gap-2 mt-5">
               <button className="btn" onClick={() => setOpen(false)}>

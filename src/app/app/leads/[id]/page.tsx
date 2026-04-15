@@ -61,7 +61,10 @@ export default async function LeadDetailPage({
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
       include: { stages: { orderBy: { order: "asc" } } },
     }),
-    db.customField.findMany({ orderBy: { order: "asc" } }),
+    db.customField.findMany({
+      where: { appliesTo: { has: "LEAD" } },
+      orderBy: { order: "asc" },
+    }),
     contactIds.length || contactEmails.length
       ? db.email.findMany({
           where: {

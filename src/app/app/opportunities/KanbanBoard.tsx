@@ -394,7 +394,7 @@ function CardContent({
       <div className="title-row">
         <span className={`logo ${logoColor}`}>{letter}</span>
         <Link
-          href={`/app/leads/${card.leadId}`}
+          href={`/app/opportunities/${card.id}`}
           className="truncate hover:underline flex-1"
           onClick={(e) => e.stopPropagation()}
         >

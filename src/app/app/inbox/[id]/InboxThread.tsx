@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Reply, Forward, X, ChevronDown, Mail } from "lucide-react";
+import RichTextEditor from "@/components/RichTextEditor";
 
 type Message = {
   id: string;
@@ -185,8 +186,8 @@ function Composer({
       : source.fromEmail
     : "";
   const reSubject = /^(Re|Fwd):/i.test(source.subject) ? source.subject : `${mode === "reply" ? "Re" : "Fwd"}: ${source.subject}`;
-  const quoted = buildQuote(source);
-  const initialBody = mode === "reply" ? `\n\n${quoted}` : `\n\n${quoted}`;
+  const quoted = buildQuoteHtml(source);
+  const initialBody = `<p><br></p>${quoted}`;
 
   const [to, setTo] = useState(initialTo);
   const [subject, setSubject] = useState(reSubject);
@@ -204,8 +205,7 @@ function Composer({
         body: JSON.stringify({
           to,
           subject,
-          bodyText: body,
-          // Only attach to existing thread for replies
+          bodyHtml: body,
           replyToEmailId: mode === "reply" ? source.id : undefined,
           contactId: source.contactId ?? undefined,
         }),
@@ -262,11 +262,9 @@ function Composer({
             onChange={(e) => setSubject(e.target.value)}
           />
         </div>
-        <textarea
-          className="input mt-2 min-h-[240px] font-sans"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-        />
+        <div className="mt-2">
+          <RichTextEditor value={body} onChange={setBody} minHeight={260} />
+        </div>
       </div>
       <div className="flex justify-end gap-2 mt-3">
         <button className="btn" onClick={onClose}>Discard</button>
@@ -278,13 +276,22 @@ function Composer({
   );
 }
 
-function buildQuote(m: Message): string {
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildQuoteHtml(m: Message): string {
   const when = new Date(m.sentAt).toLocaleString();
   const who = m.fromName ?? m.fromEmail;
-  const raw = (m.bodyText ?? m.snippet ?? "").trim();
-  const quoted = raw
-    .split("\n")
-    .map((l) => "> " + l)
-    .join("\n");
-  return `On ${when}, ${who} wrote:\n${quoted}`;
+  const bodyHtml =
+    m.bodyHtml ??
+    (m.bodyText ? escapeHtml(m.bodyText).replace(/\n/g, "<br>") : escapeHtml(m.snippet ?? ""));
+  return (
+    `<p style="color:#6b7280;font-size:12px">On ${when}, ${escapeHtml(who)} wrote:</p>` +
+    `<blockquote style="border-left:3px solid #e6e8ec;padding-left:12px;color:#374151">${bodyHtml}</blockquote>`
+  );
 }

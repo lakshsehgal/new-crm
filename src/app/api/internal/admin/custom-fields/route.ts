@@ -8,6 +8,10 @@ const Body = z.object({
   type: z.enum(["TEXT", "NUMBER", "DATE", "BOOLEAN", "SELECT", "URL"]),
   required: z.boolean().optional(),
   options: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+  appliesTo: z
+    .array(z.enum(["LEAD", "CONTACT", "OPPORTUNITY"]))
+    .min(1)
+    .optional(),
 });
 
 function slugify(input: string): string {
@@ -24,7 +28,6 @@ function slugify(input: string): string {
 async function uniqueKey(base: string): Promise<string> {
   let key = base;
   let i = 1;
-  // Ensure uniqueness in a loop — tiny workspace, cheap query
   while (await db.customField.findUnique({ where: { key } })) {
     i += 1;
     key = `${base}_${i}`;
@@ -43,6 +46,7 @@ export async function POST(req: NextRequest) {
       type: data.type,
       required: !!data.required,
       options: data.options ?? undefined,
+      appliesTo: data.appliesTo ?? ["LEAD", "CONTACT", "OPPORTUNITY"],
     },
   });
   return Response.json(field);

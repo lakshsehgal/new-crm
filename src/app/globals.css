@@ -268,6 +268,33 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
   @apply flex items-center gap-2 mt-2 pt-2 border-t border-border/70 text-[12px] text-muted;
 }
 
+/* Rich text editor */
+.rte {
+  @apply border border-border rounded-lg overflow-hidden bg-white;
+}
+.rte-toolbar {
+  @apply flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-surface;
+}
+.rte-divider {
+  @apply w-px h-5 bg-border mx-1;
+}
+.rte-btn {
+  @apply size-7 grid place-items-center rounded text-muted hover:bg-white hover:text-ink transition-colors;
+}
+.rte-btn:active { background: theme("colors.accentSoft"); color: theme("colors.accent"); }
+.rte-surface {
+  @apply w-full px-3 py-2.5 text-[14px] leading-6 outline-none font-sans;
+}
+.rte-surface:empty::before {
+  content: attr(data-placeholder);
+  color: theme("colors.mutedSoft");
+  pointer-events: none;
+}
+.rte-surface a { color: theme("colors.accent"); text-decoration: underline; }
+.rte-surface ul { list-style: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
+.rte-surface ol { list-style: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
+.rte-surface p { margin: 0.25rem 0; }
+
 /* Tiny icon buttons */
 .icon-btn {
   @apply size-6 grid place-items-center rounded text-muted;

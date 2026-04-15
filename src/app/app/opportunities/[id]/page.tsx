@@ -57,7 +57,10 @@ export default async function OpportunityDetailPage({
     .map((c) => c.email)
     .filter((e): e is string => !!e);
   const [customFields, emails] = await Promise.all([
-    db.customField.findMany({ orderBy: { order: "asc" } }),
+    db.customField.findMany({
+      where: { appliesTo: { has: "OPPORTUNITY" } },
+      orderBy: { order: "asc" },
+    }),
     contactIds.length || contactEmails.length
       ? db.email.findMany({
           where: {

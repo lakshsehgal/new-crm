@@ -47,6 +47,7 @@ export default async function ContactDetailPage({
   });
 
   const customFields = await db.customField.findMany({
+    where: { appliesTo: { has: "CONTACT" } },
     orderBy: { order: "asc" },
   });
 

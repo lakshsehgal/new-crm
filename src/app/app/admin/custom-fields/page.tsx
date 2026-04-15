@@ -12,8 +12,8 @@ export default async function AdminCustomFieldsPage() {
       <header>
         <h1 className="text-xl font-semibold">Custom fields</h1>
         <p className="text-sm text-muted">
-          Fields you add here appear on every Lead, Contact, and Opportunity.
-          Each record stores its own value for a field.
+          Define reusable fields and choose whether they appear on Leads,
+          Contacts, Opportunities, or any combination.
         </p>
       </header>
       <CustomFieldsUI
@@ -24,6 +24,7 @@ export default async function AdminCustomFieldsPage() {
           type: f.type,
           required: f.required,
           options: f.options as any,
+          appliesTo: f.appliesTo as any,
         }))}
       />
     </div>
