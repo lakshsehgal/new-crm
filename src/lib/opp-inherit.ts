@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { db } from "./db";
 
 /**
@@ -8,8 +9,10 @@ import { db } from "./db";
  * Uses Option A (snapshot) semantics: the opp gets a copy at creation time;
  * later edits to the lead do NOT propagate. Later edits to the opp do NOT
  * flow back to the lead either.
+ *
+ * Returns a value assignable to a Prisma `Json` input field.
  */
-export async function inheritedCustomData(leadId: string): Promise<Record<string, unknown>> {
+export async function inheritedCustomData(leadId: string): Promise<Prisma.InputJsonValue> {
   const [lead, sharedFields] = await Promise.all([
     db.lead.findUnique({
       where: { id: leadId },
@@ -23,9 +26,10 @@ export async function inheritedCustomData(leadId: string): Promise<Record<string
   const src = (lead?.customData ?? {}) as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   for (const { key } of sharedFields) {
-    if (key in src && src[key] !== null && src[key] !== undefined && src[key] !== "") {
-      out[key] = src[key];
+    const v = src[key];
+    if (v !== null && v !== undefined && v !== "") {
+      out[key] = v;
     }
   }
-  return out;
+  return out as Prisma.InputJsonValue;
 }
