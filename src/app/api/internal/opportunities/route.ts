@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { inheritedCustomData } from "@/lib/opp-inherit";
 import { z } from "zod";
 
 const Body = z.object({
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest) {
   const user = await requireUser();
   const data = Body.parse(await req.json());
   const count = await db.opportunity.count({ where: { stageId: data.stageId } });
+  // Snapshot inherited custom-field values from the parent lead for any
+  // field whose scope includes both LEAD and OPPORTUNITY.
+  const customData = await inheritedCustomData(data.leadId);
   const opp = await db.opportunity.create({
     data: {
       name: data.name,
@@ -27,6 +31,7 @@ export async function POST(req: NextRequest) {
       stageOrder: count,
       leadId: data.leadId,
       ownerId: user.id,
+      customData,
     },
   });
   void dispatchWebhook("OPPORTUNITY_CREATED", opp);
