@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { notifyLeadCreated } from "@/lib/mailer";
 import { Prisma } from "@prisma/client";
 import { z, ZodError } from "zod";
 
@@ -207,6 +208,48 @@ export async function POST(req: NextRequest) {
     });
     void dispatchWebhook("LEAD_CREATED", result.lead);
     if (result.contact) void dispatchWebhook("CONTACT_CREATED", result.contact);
+
+    // Fire new-lead email alert (fire-and-forget). Recipients come from the
+    // LEAD_NOTIFICATION_EMAILS env var (comma-separated) if set, otherwise
+    // fall back to the API key owner's email so it "just works" out of the box.
+    void (async () => {
+      const envTo = (process.env.LEAD_NOTIFICATION_EMAILS ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      let recipients = envTo;
+      if (recipients.length === 0) {
+        const owner = await db.user.findUnique({
+          where: { id: caller.userId },
+          select: { email: true },
+        });
+        if (owner?.email) recipients = [owner.email];
+      }
+      const origin =
+        process.env.NEXT_PUBLIC_APP_URL ??
+        req.nextUrl.origin;
+      await notifyLeadCreated(recipients, {
+        leadId: result.lead.id,
+        leadName: result.lead.name,
+        url: result.lead.url,
+        description: result.lead.description,
+        status: result.lead.status,
+        customData: (result.lead.customData as Record<string, unknown>) ?? {},
+        contact: result.contact
+          ? {
+              name:
+                [result.contact.firstName, result.contact.lastName]
+                  .filter(Boolean)
+                  .join(" ") || null,
+              email: result.contact.email,
+              phone: result.contact.phone,
+              title: result.contact.title,
+            }
+          : null,
+        appOrigin: origin,
+      });
+    })();
+
     return Response.json(result, { status: 201 });
   } catch (err) {
     console.error("POST /api/v1/leads failed:", err);
