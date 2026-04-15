@@ -2,11 +2,11 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
+import { db } from "@/lib/db";
 import {
   LifeBuoy,
   Settings as SettingsIcon,
   ChevronsLeft,
-  ChevronDown,
   LogOut,
 } from "lucide-react";
 import { initials } from "@/lib/utils";
@@ -16,27 +16,36 @@ import SidebarNav from "./SidebarNav";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/signin");
-  const u = session.user as any;
-  const isAdmin = u.role === "ADMIN";
+  const sessionUser = session.user as any;
+  const me = await db.user.findUnique({
+    where: { id: sessionUser.id },
+    select: { id: true, name: true, email: true, image: true, title: true, role: true },
+  });
+  if (!me) redirect("/signin");
+  const isAdmin = me.role === "ADMIN";
+  const displayName = me.name || me.email.split("@")[0];
+  const roleLabel = me.title || (isAdmin ? "Workspace admin" : "Member");
 
   return (
-    <div className="min-h-screen grid grid-cols-[220px_1fr] bg-surface">
+    <div className="min-h-screen grid grid-cols-[232px_1fr] bg-surface">
       <aside className="sidebar flex flex-col h-screen sticky top-0">
-        <div className="px-2 pt-2 pb-2">
-          <button className="profile-row w-full text-left">
-            <div className="size-8 rounded-full bg-white text-sidebar-bg grid place-items-center text-[11px] font-semibold shadow-sm">
-              {initials(u.name, u.email)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-semibold truncate text-white leading-tight">
-                {u.name || u.email?.split("@")[0]}
-              </div>
-              <div className="text-[11px] text-sidebar-muted truncate leading-tight mt-0.5">
-                {isAdmin ? "Workspace admin" : "Member"}
-              </div>
-            </div>
-            <ChevronDown size={13} className="text-sidebar-mutedSoft" />
-          </button>
+        {/* Brand */}
+        <div className="px-3 pt-3.5 pb-3">
+          <Link href="/app" className="brand-row" aria-label="Neuroid home">
+            <span className="brand-mark">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-[16px]">
+                <path
+                  d="M5 19V5l9 12V5"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="19" cy="5" r="1.6" fill="currentColor" />
+              </svg>
+            </span>
+            <span className="brand-word">Neuroid</span>
+          </Link>
         </div>
 
         <Suspense fallback={<div className="flex-1" />}>
@@ -59,25 +68,60 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
         </div>
 
-        <div className="collapse-bar">
-          <button className="flex items-center gap-1.5" type="button">
-            <ChevronsLeft size={13} /> Collapse
-          </button>
+        {/* Profile pinned at the bottom */}
+        <div className="profile-dock">
+          <Link
+            href="/app/settings/profile"
+            className="profile-dock-main"
+            title="Edit your profile"
+          >
+            {me.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={me.image}
+                alt=""
+                className="size-8 rounded-full object-cover border border-sidebar-border"
+              />
+            ) : (
+              <div className="size-8 rounded-full bg-white text-sidebar-bg grid place-items-center text-[11px] font-semibold shadow-sm">
+                {initials(me.name, me.email)}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-semibold truncate text-white leading-tight">
+                {displayName}
+              </div>
+              <div className="text-[11px] text-sidebar-muted truncate leading-tight mt-0.5">
+                {roleLabel}
+              </div>
+            </div>
+          </Link>
           <form
             action={async () => {
               "use server";
               await signOut({ redirectTo: "/signin" });
             }}
           >
-            <button className="flex items-center gap-1" type="submit" title="Sign out">
+            <button
+              className="signout-btn"
+              type="submit"
+              title="Sign out"
+              aria-label="Sign out"
+            >
               <LogOut size={12} />
             </button>
           </form>
         </div>
+
+        <div className="collapse-bar">
+          <button className="flex items-center gap-1.5" type="button">
+            <ChevronsLeft size={13} /> Collapse
+          </button>
+        </div>
       </aside>
 
       <main className="min-w-0 bg-white flex flex-col">
-        <header className="h-12 border-b border-border flex items-center px-4 flex-shrink-0 bg-white">
+        <header className="h-12 border-b border-border flex items-center px-4 flex-shrink-0 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/70 sticky top-0 z-20">
           <Suspense fallback={null}>
             <GlobalSearch />
           </Suspense>

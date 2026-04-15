@@ -150,7 +150,7 @@ export default async function LeadDetailPage({
               right={
                 <div className="flex items-center gap-1">
                   <IconBtn title="Search"><Search size={12} /></IconBtn>
-                  <AddOppButton leadId={lead.id} pipelines={pipelines as any} />
+                  <AddOppButton leadId={lead.id} leadName={lead.name} pipelines={pipelines as any} />
                 </div>
               }
               defaultOpen={lead.opportunities.length > 0}

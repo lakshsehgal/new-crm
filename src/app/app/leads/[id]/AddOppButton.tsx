@@ -9,13 +9,15 @@ type Pipeline = { id: string; name: string; stages: { id: string; name: string }
 
 export default function AddOppButton({
   leadId,
+  leadName,
   pipelines,
 }: {
   leadId: string;
+  leadName: string;
   pipelines: Pipeline[];
 }) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(leadName);
   const [value, setValue] = useState("");
   const [pipelineId, setPipelineId] = useState(pipelines[0]?.id ?? "");
   const [stageId, setStageId] = useState(pipelines[0]?.stages[0]?.id ?? "");
@@ -23,6 +25,13 @@ export default function AddOppButton({
   const router = useRouter();
 
   const activePipeline = pipelines.find((p) => p.id === pipelineId);
+
+  function openModal() {
+    // Always seed with the lead name on open; easier than a controlled reset
+    setName(leadName);
+    setValue("");
+    setOpen(true);
+  }
 
   async function save() {
     if (!name.trim()) {
@@ -42,7 +51,7 @@ export default function AddOppButton({
     if (!res.ok) return toast.error("Failed");
     toast.success("Opportunity created");
     setOpen(false);
-    setName(""); setValue("");
+    setName(leadName); setValue("");
     start(() => router.refresh());
   }
 
@@ -64,7 +73,7 @@ export default function AddOppButton({
         className="size-5 grid place-items-center rounded hover:bg-surface text-muted"
         onClick={(e) => {
           e.preventDefault();
-          setOpen(true);
+          openModal();
         }}
         title="Add opportunity"
       >

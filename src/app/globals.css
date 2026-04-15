@@ -10,14 +10,23 @@ html, body {
   font-feature-settings: "cv11", "ss01";
 }
 
-/* Smooth transitions app-wide */
-a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
+/* Smooth transitions app-wide — snappy, pace is ~120ms base */
+a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col, .nav-item, .nav-sub, .footer-link, .profile-dock, .profile-dock-main, .signout-btn, .brand-row {
   transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease,
-    box-shadow 150ms ease,
-    transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    background-color 110ms ease,
+    color 110ms ease,
+    border-color 110ms ease,
+    box-shadow 160ms ease,
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 110ms ease;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 /* Scrollbars */
@@ -34,47 +43,88 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
 /* ----- Animations ----- */
 @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
 @keyframes pop-in {
-  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 @keyframes slide-down {
-  from { opacity: 0; transform: translateY(-4px); }
+  from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fade-in    { animation: fade-in 140ms ease-out; }
-.pop-in     { animation: pop-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1); }
-.slide-down { animation: slide-down 150ms ease-out; }
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in    { animation: fade-in 180ms ease-out both; }
+.pop-in     { animation: pop-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.slide-down { animation: slide-down 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.slide-up   { animation: slide-up 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* Stagger children with a subtle cascade for lists/grids */
+.stagger > * { animation: slide-up 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 35ms; }
+.stagger > *:nth-child(3) { animation-delay: 70ms; }
+.stagger > *:nth-child(4) { animation-delay: 105ms; }
+.stagger > *:nth-child(5) { animation-delay: 140ms; }
+.stagger > *:nth-child(6) { animation-delay: 175ms; }
+.stagger > *:nth-child(n+7) { animation-delay: 210ms; }
 
 /* ----- Sidebar (dark, Close-style) ----- */
 .sidebar {
   @apply bg-sidebar-bg text-sidebar-ink;
   font-size: 13px;
+  /* Premium gradient lift for the rail */
+  background:
+    radial-gradient(1200px 400px at -100px -100px, rgba(59,130,246,0.07), transparent 60%),
+    theme("colors.sidebar.bg");
 }
-.sidebar .profile-row {
-  @apply flex items-center gap-2 px-2.5 py-2 rounded-md cursor-pointer;
-  transition: background-color 120ms ease;
+
+/* Brand block at top-left */
+.sidebar .brand-row {
+  @apply flex items-center gap-2.5 px-2 py-2 rounded-lg select-none;
+  color: #ffffff;
 }
-.sidebar .profile-row:hover { @apply bg-sidebar-hover; }
+.sidebar .brand-row:hover { background: theme("colors.sidebar.hover"); }
+.sidebar .brand-mark {
+  @apply size-7 rounded-lg grid place-items-center text-white flex-shrink-0;
+  background:
+    linear-gradient(135deg, #3b82f6 0%, #8b5cf6 60%, #ec4899 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.15) inset,
+    0 6px 14px rgba(59,130,246,0.35);
+}
+.sidebar .brand-word {
+  @apply text-[15px] font-bold tracking-tight text-white;
+  letter-spacing: -0.01em;
+}
 
 .sidebar .nav-item {
-  @apply flex items-center gap-2.5 px-2.5 py-[6px] rounded-md text-[13px] text-sidebar-ink/85 cursor-pointer select-none relative;
-  transition: background-color 100ms ease, color 100ms ease;
+  @apply flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] font-medium text-sidebar-ink/85 cursor-pointer select-none relative;
 }
 .sidebar .nav-item:hover { @apply bg-sidebar-hover text-white; }
 .sidebar .nav-item.active {
   background: theme("colors.sidebar.active");
   color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+.sidebar .nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: theme("colors.sidebar.green");
 }
 .sidebar .nav-item .ico {
   @apply text-sidebar-muted;
-  transition: color 100ms ease;
 }
 .sidebar .nav-item:hover .ico,
 .sidebar .nav-item.active .ico { @apply text-sidebar-ink; }
 
 .sidebar .nav-sub {
-  @apply flex items-center gap-2 pl-8 pr-2.5 py-[4px] text-[12.5px] text-sidebar-muted cursor-pointer rounded-md;
-  transition: color 100ms ease;
+  @apply flex items-center gap-2 pl-8 pr-2.5 py-[4px] text-[12.5px] font-medium text-sidebar-muted cursor-pointer rounded-md;
 }
 .sidebar .nav-sub::before {
   content: "";
@@ -87,14 +137,28 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
 .sidebar .nav-sub.active::before { background: theme("colors.sidebar.green"); }
 
 .sidebar .section-label {
-  @apply px-2.5 pt-5 pb-1.5 text-[10.5px] tracking-[0.08em] uppercase text-sidebar-mutedSoft font-semibold flex items-center justify-between;
+  @apply px-2.5 pt-5 pb-1.5 text-[10.5px] tracking-[0.09em] uppercase text-sidebar-ink/80 font-bold flex items-center justify-between;
 }
 
 .sidebar .footer-link {
-  @apply flex items-center gap-2.5 px-2.5 py-[6px] rounded-md text-[13px] text-sidebar-muted cursor-pointer;
-  transition: background-color 100ms ease, color 100ms ease;
+  @apply flex items-center gap-2.5 px-2.5 py-[6px] rounded-md text-[13px] font-medium text-sidebar-muted cursor-pointer;
 }
 .sidebar .footer-link:hover { @apply bg-sidebar-hover text-white; }
+
+/* Profile card pinned to the bottom of the sidebar */
+.sidebar .profile-dock {
+  @apply flex items-center gap-1 px-1.5 py-1.5 mx-2 mb-1 rounded-xl border border-sidebar-border;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%), theme("colors.sidebar.surface");
+}
+.sidebar .profile-dock-main {
+  @apply flex items-center gap-2.5 flex-1 min-w-0 px-1.5 py-1 rounded-lg cursor-pointer select-none;
+  color: inherit;
+}
+.sidebar .profile-dock-main:hover { background: theme("colors.sidebar.hover"); }
+.sidebar .signout-btn {
+  @apply size-7 grid place-items-center rounded-lg text-sidebar-muted;
+}
+.sidebar .signout-btn:hover { @apply bg-sidebar-hover text-white; }
 
 .sidebar .collapse-bar {
   @apply border-t border-sidebar-border px-3 py-2 flex items-center justify-between text-[12px] text-sidebar-mutedSoft;
@@ -112,81 +176,120 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
 .card {
   @apply bg-white border border-border rounded-xl shadow-card;
 }
+.card:hover { box-shadow: 0 2px 6px rgba(15,20,25,0.05), 0 1px 2px rgba(15,20,25,0.04); }
 
 .btn {
-  @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium
+  @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13.5px] font-semibold
          bg-white border border-border text-ink;
 }
-.btn:hover { @apply bg-surface; }
-.btn:active { transform: translateY(0.5px); }
+.btn:hover { @apply bg-surface; border-color: #d7dae0; }
+.btn:active { transform: translateY(0.5px) scale(0.99); }
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px theme("colors.accent / 40%");
+}
 
 .btn-primary {
-  @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium
-         bg-accent text-white;
+  @apply inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-[13.5px] font-semibold
+         text-white;
+  background: linear-gradient(180deg, #2f6bf0 0%, #2563eb 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.25) inset,
+    0 1px 2px rgba(15,20,25,0.08),
+    0 0 0 1px rgba(37,99,235,0.2);
 }
-.btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37,99,235,0.25); }
-.btn-primary:active { transform: translateY(0.5px); }
+.btn-primary:hover {
+  background: linear-gradient(180deg, #2a62e8 0%, #1e57d6 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.25) inset,
+    0 6px 16px rgba(37,99,235,0.30),
+    0 0 0 1px rgba(37,99,235,0.25);
+  transform: translateY(-0.5px);
+}
+.btn-primary:active { transform: translateY(0.5px) scale(0.99); }
+.btn-primary:focus-visible {
+  outline: none;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.25) inset,
+    0 0 0 2px #fff,
+    0 0 0 4px theme("colors.accent / 45%");
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.25) inset,
+    0 0 0 1px rgba(37,99,235,0.2);
+}
 
 .btn-ghost {
   @apply inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted;
 }
-.btn-ghost:hover { @apply bg-surface; }
+.btn-ghost:hover { @apply bg-surface text-ink; }
 
 .input {
   @apply w-full rounded-lg border border-border bg-white px-3 py-1.5 text-sm
-         outline-none focus:border-accent focus:ring-2 focus:ring-accentSoft;
+         outline-none;
+  transition: border-color 110ms ease, box-shadow 140ms ease, background-color 110ms ease;
+}
+.input:hover { border-color: #d7dae0; }
+.input:focus {
+  border-color: theme("colors.accent");
+  box-shadow: 0 0 0 3px theme("colors.accent / 15%");
 }
 
-.label { @apply text-xs font-medium text-muted uppercase tracking-wide; }
+.label { @apply text-[11px] font-semibold text-muted uppercase tracking-[0.06em]; }
 
 .pill {
   @apply inline-flex items-center gap-1.5 rounded-full border border-border bg-white text-ink
-         px-3 py-1 text-[13px] font-medium cursor-pointer;
+         px-3 py-1 text-[13px] font-semibold cursor-pointer;
 }
-.pill:hover { @apply bg-surface border-accent/30; }
+.pill:hover { @apply bg-surface border-accent/30; transform: translateY(-0.5px); }
 .pill-active { @apply bg-accentSoft border-accent text-accent; }
 .pill-muted { @apply inline-flex items-center gap-1 text-[13px] text-muted; }
 
 .badge {
-  @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium bg-surface border border-border;
+  @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold bg-surface border border-border;
 }
 
 /* Tables */
 .tbl { @apply w-full text-sm; }
 .tbl th {
-  @apply px-3 py-2 text-left font-medium text-muted border-b border-border sticky top-0 bg-white/95 backdrop-blur;
+  @apply px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.05em] text-muted border-b border-border sticky top-0 bg-white/95 backdrop-blur;
 }
-.tbl td { @apply px-3 py-2 border-b border-border; }
+.tbl td { @apply px-3 py-2.5 border-b border-border; }
 .tbl tr { transition: background-color 120ms ease; }
-.tbl tr:hover td { @apply bg-accentSoft/30; }
+.tbl tr:hover td { background: theme("colors.accentSoft / 40%"); }
 
 /* Detail-page collapsible sections (Close style) */
 .section {
-  @apply bg-white border border-border rounded-lg overflow-hidden;
+  @apply bg-white border border-border rounded-xl overflow-hidden;
+  transition: border-color 140ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 .section > summary {
-  @apply px-3 py-2.5 flex items-center gap-2 cursor-pointer select-none bg-surface;
-  transition: background-color 100ms ease;
+  @apply px-3.5 py-2.5 flex items-center gap-2 cursor-pointer select-none bg-surface;
+  transition: background-color 120ms ease;
   list-style: none;
 }
 .section > summary::-webkit-details-marker { display: none; }
-.section > summary:hover { @apply bg-surface/70; }
+.section > summary:hover { background: #f1f3f6; }
 .section .chev {
-  @apply text-mutedSoft transition-transform duration-150;
+  @apply text-mutedSoft transition-transform duration-200;
 }
 .section[open] > summary .chev { transform: rotate(90deg); }
 .section .sec-ico {
   @apply size-4 grid place-items-center rounded;
 }
 .section .sec-title {
-  @apply text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted;
+  @apply text-[11.5px] font-bold uppercase tracking-[0.08em] text-muted;
 }
 .section .sec-count {
-  @apply inline-flex items-center justify-center text-[11px] font-semibold text-muted bg-white border border-border rounded-full min-w-5 h-5 px-1.5;
+  @apply inline-flex items-center justify-center text-[11px] font-bold text-muted bg-white border border-border rounded-full min-w-5 h-5 px-1.5;
 }
 .section[open] {
   border-color: theme("colors.accent / 35%");
-  box-shadow: 0 0 0 1px theme("colors.accent / 12%");
+  box-shadow: 0 0 0 1px theme("colors.accent / 12%"), 0 2px 8px rgba(37,99,235,0.05);
 }
 .section[open] > summary {
   background: theme("colors.accentSoft");
@@ -197,12 +300,16 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
 
 /* Modal overlay */
 .modal-overlay {
-  @apply fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4;
-  animation: fade-in 150ms ease-out;
+  @apply fixed inset-0 z-50 grid place-items-center p-4;
+  background: rgba(10, 12, 16, 0.55);
+  backdrop-filter: blur(6px) saturate(120%);
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
+  animation: fade-in 180ms ease-out;
 }
 .modal-card {
   @apply card shadow-pop;
-  animation: pop-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: pop-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-color: rgba(230, 232, 236, 0.9);
 }
 
 /* ----- Kanban ----- */
@@ -241,13 +348,13 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
 }
 .opp-card:hover {
   @apply shadow-cardHover;
-  border-color: rgba(37,99,235,0.3);
-  transform: translateY(-1px);
+  border-color: rgba(37,99,235,0.4);
+  transform: translateY(-2px);
 }
 .opp-card:active { cursor: grabbing; }
 .opp-card.dragging {
-  box-shadow: 0 12px 28px rgba(15,20,25,0.18);
-  transform: rotate(-0.5deg) scale(1.02);
+  box-shadow: 0 16px 36px rgba(15,20,25,0.22);
+  transform: rotate(-0.8deg) scale(1.03);
   z-index: 40;
 }
 
@@ -271,6 +378,11 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col {
 /* Rich text editor */
 .rte {
   @apply border border-border rounded-lg overflow-hidden bg-white;
+  transition: border-color 110ms ease, box-shadow 160ms ease;
+}
+.rte:focus-within {
+  border-color: theme("colors.accent");
+  box-shadow: 0 0 0 3px theme("colors.accent / 15%");
 }
 .rte-toolbar {
   @apply flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-surface;
