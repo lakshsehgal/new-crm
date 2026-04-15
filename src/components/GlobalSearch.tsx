@@ -88,12 +88,13 @@ export default function GlobalSearch() {
   }
 
   function onEnter() {
-    const top =
-      results.opportunities[0] ?? results.leads[0] ?? results.contacts[0];
-    if (!top) return;
-    if ("stage" in top) go(`/app/opportunities/${top.id}`);
-    else if ("status" in top) go(`/app/leads/${top.id}`);
-    else go(`/app/contacts/${top.id}`);
+    if (results.opportunities[0]) {
+      go(`/app/opportunities/${results.opportunities[0].id}`);
+    } else if (results.leads[0]) {
+      go(`/app/leads/${results.leads[0].id}`);
+    } else if (results.contacts[0]) {
+      go(`/app/contacts/${results.contacts[0].id}`);
+    }
   }
 
   return (
