@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
@@ -217,13 +217,15 @@ export async function POST(req: NextRequest) {
       }
       return { lead, contact };
     });
-    void dispatchWebhook("LEAD_CREATED", result.lead);
-    if (result.contact) void dispatchWebhook("CONTACT_CREATED", result.contact);
-
-    // Fire new-lead email alert (fire-and-forget). Recipients come from the
-    // LEAD_NOTIFICATION_EMAILS env var (comma-separated) if set, otherwise
-    // fall back to the API key owner's email so it "just works" out of the box.
-    void (async () => {
+    // Use after() for all background work so Vercel keeps the function
+    // alive until completion, avoiding ECONNRESET on outbound fetches.
+    const leadForEmail = result.lead;
+    const contactForEmail = result.contact;
+    after(async () => {
+      await dispatchWebhook("LEAD_CREATED", leadForEmail);
+      if (contactForEmail) await dispatchWebhook("CONTACT_CREATED", contactForEmail);
+    });
+    after(async () => {
       try {
         const envTo = (process.env.LEAD_NOTIFICATION_EMAILS ?? "")
           .split(",")
@@ -247,21 +249,21 @@ export async function POST(req: NextRequest) {
           }
         }
         await notifyLeadCreated(recipients, {
-          leadId: result.lead.id,
-          leadName: result.lead.name,
-          url: result.lead.url,
-          description: result.lead.description,
-          status: result.lead.status,
-          customData: (result.lead.customData as Record<string, unknown>) ?? {},
-          contact: result.contact
+          leadId: leadForEmail.id,
+          leadName: leadForEmail.name,
+          url: leadForEmail.url,
+          description: leadForEmail.description,
+          status: leadForEmail.status,
+          customData: (leadForEmail.customData as Record<string, unknown>) ?? {},
+          contact: contactForEmail
             ? {
                 name:
-                  [result.contact.firstName, result.contact.lastName]
+                  [contactForEmail.firstName, contactForEmail.lastName]
                     .filter(Boolean)
                     .join(" ") || null,
-                email: result.contact.email,
-                phone: result.contact.phone,
-                title: result.contact.title,
+                email: contactForEmail.email,
+                phone: contactForEmail.phone,
+                title: contactForEmail.title,
               }
             : null,
           appOrigin: origin,
@@ -269,7 +271,7 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error("[leads] post-create alert failed:", err);
       }
-    })();
+    });
 
     return Response.json(result, { status: 201 });
   } catch (err) {
