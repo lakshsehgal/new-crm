@@ -13,9 +13,23 @@ import {
   SlidersHorizontal,
   Plug,
   Shield,
+  Filter,
+  Plus,
+  Pin,
 } from "lucide-react";
 
-export default function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
+type PinnedView = {
+  id: string;
+  name: string;
+};
+
+export default function SidebarNav({
+  isAdmin,
+  pinnedViews,
+}: {
+  isAdmin: boolean;
+  pinnedViews?: PinnedView[];
+}) {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const view = searchParams?.get("view");
@@ -29,6 +43,8 @@ export default function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
     if (exact) return pathname === href;
     return pathname === href || pathname.startsWith(href + "/");
   }
+
+  const views = pinnedViews ?? [];
 
   return (
     <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-[2px]">
@@ -78,6 +94,32 @@ export default function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
         label="Activities"
         active={active("/app/activities")}
       />
+
+      {/* Smart Views section */}
+      <div className="section-label">
+        <span>Smart Views</span>
+        <Link
+          href="/app/smart-views/new"
+          className="size-5 grid place-items-center rounded text-sidebar-muted hover:text-white"
+          title="New smart view"
+        >
+          <Plus size={12} />
+        </Link>
+      </div>
+      <NavLink
+        href="/app/smart-views"
+        icon={<Filter size={15} className="text-indigo-400/90" />}
+        label="All Views"
+        active={active("/app/smart-views", true)}
+      />
+      {views.map((v) => (
+        <NavSub
+          key={v.id}
+          href={`/app/smart-views/${v.id}`}
+          label={v.name}
+          active={pathname === `/app/smart-views/${v.id}`}
+        />
+      ))}
 
       {isAdmin && (
         <>

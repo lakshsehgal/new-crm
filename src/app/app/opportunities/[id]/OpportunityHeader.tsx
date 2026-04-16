@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft,
   ChevronDown,
   MoreHorizontal,
+  Pencil,
   Trash2,
   Trophy,
   Building2,
@@ -36,8 +37,37 @@ export default function OpportunityHeader({
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const [currentStageId, setCurrentStageId] = useState(stageId);
+  const [editingName, setEditingName] = useState(false);
+  const [name, setName] = useState(oppName);
   const [pending, start] = useTransition();
   const router = useRouter();
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingName) nameRef.current?.select();
+  }, [editingName]);
+
+  async function saveName() {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === oppName) {
+      setName(oppName);
+      setEditingName(false);
+      return;
+    }
+    setEditingName(false);
+    const res = await fetch(`/api/internal/opportunities/${oppId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to rename opportunity");
+      setName(oppName);
+    } else {
+      toast.success("Opportunity renamed");
+      start(() => router.refresh());
+    }
+  }
 
   const stage = stages.find((s) => s.id === currentStageId);
 
@@ -74,9 +104,6 @@ export default function OpportunityHeader({
       <button
         type="button"
         onClick={() => {
-          // Prefer history-back so we return to wherever the user came from
-          // (kanban, list, search, lead). Fall back to /app/opportunities
-          // when history is empty (deep link / new tab).
           if (typeof window !== "undefined" && window.history.length > 1) {
             router.back();
           } else {
@@ -92,8 +119,40 @@ export default function OpportunityHeader({
         <Trophy size={16} />
       </div>
       <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <h1 className="font-semibold text-[17px] truncate">{oppName}</h1>
+        <div className="flex items-center gap-2 group/name">
+          {editingName ? (
+            <input
+              ref={nameRef}
+              className="font-semibold text-[17px] bg-transparent border-b-2 border-accent outline-none py-0 px-0.5 -ml-0.5"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveName();
+                if (e.key === "Escape") {
+                  setName(oppName);
+                  setEditingName(false);
+                }
+              }}
+            />
+          ) : (
+            <h1
+              className="font-semibold text-[17px] truncate cursor-pointer hover:text-accent"
+              onClick={() => setEditingName(true)}
+              title="Click to rename"
+            >
+              {name}
+            </h1>
+          )}
+          {!editingName && (
+            <button
+              className="text-muted hover:text-ink opacity-0 group-hover/name:opacity-100 transition-opacity"
+              onClick={() => setEditingName(true)}
+              title="Rename opportunity"
+            >
+              <Pencil size={13} />
+            </button>
+          )}
           <div className="relative">
             <button
               className={`badge cursor-pointer pr-2 ${stageClass}`}

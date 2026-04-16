@@ -90,6 +90,7 @@ model User {
   emailTemplates     EmailTemplate[]
   gmailSync          GmailSync?
   invitesSent        Invite[]      @relation("InviteSender")
+  smartViews         SmartView[]
 }
 
 model Account {
@@ -378,4 +379,21 @@ model Email {
 
   @@index([contactId, sentAt])
   @@index([userId, sentAt])
+}
+
+/// Saved filter views for leads/opportunities. Filters are stored as a JSON
+/// array of conditions that get translated into Prisma where clauses at query
+/// time. Users can pin views to the sidebar for quick access.
+model SmartView {
+  id        String   @id @default(cuid())
+  name      String
+  entity    String   @default("LEAD") // LEAD or OPPORTUNITY
+  filters   Json     @default("{}") // { match: "all"|"any", conditions: [...] }
+  pinned    Boolean  @default(false)
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
 }

@@ -233,6 +233,20 @@ export default async function OpportunityDetailPage({
                         {c.title && (
                           <div className="text-[11px] text-mutedSoft mt-0.5">{c.title}</div>
                         )}
+                        {(c.email || c.phone) && (
+                          <div className="flex items-center gap-3 mt-1 text-[11px] text-muted">
+                            {c.email && (
+                              <a href={`mailto:${c.email}`} className="hover:text-accent truncate">
+                                {c.email}
+                              </a>
+                            )}
+                            {c.phone && (
+                              <a href={`tel:${c.phone}`} className="hover:text-accent whitespace-nowrap">
+                                {c.phone}
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </li>
                     );
                   })}
