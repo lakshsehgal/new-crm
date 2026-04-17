@@ -8,12 +8,13 @@ import { ChevronDown, MoreHorizontal, Pencil } from "lucide-react";
 type Lead = {
   id: string;
   name: string;
-  status: "POTENTIAL" | "QUALIFIED" | "CUSTOMER" | "BAD_FIT" | "CHURNED";
+  status: "POTENTIAL" | "INTERESTED" | "QUALIFIED" | "CUSTOMER" | "BAD_FIT" | "CHURNED";
   opportunities: { id: string }[];
 };
 
 const STATUSES: Lead["status"][] = [
   "POTENTIAL",
+  "INTERESTED",
   "QUALIFIED",
   "CUSTOMER",
   "BAD_FIT",
@@ -22,6 +23,7 @@ const STATUSES: Lead["status"][] = [
 
 const statusStyle: Record<string, string> = {
   POTENTIAL: "bg-amber-50 text-amber-700 border-amber-200",
+  INTERESTED: "bg-violet-50 text-violet-700 border-violet-200",
   QUALIFIED: "bg-blue-50 text-blue-700 border-blue-200",
   CUSTOMER: "bg-emerald-50 text-emerald-700 border-emerald-200",
   BAD_FIT: "bg-rose-50 text-rose-700 border-rose-200",

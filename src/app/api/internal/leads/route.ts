@@ -13,7 +13,7 @@ const Body = z.object({
   url: z.string().url().optional().or(z.literal("")),
   description: z.string().optional(),
   address: z.string().optional(),
-  status: z.enum(["POTENTIAL", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"]).optional(),
+  status: z.enum(["POTENTIAL", "INTERESTED", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"]).optional(),
   // Optional first contact
   contactName: z.string().optional(),
   contactEmail: z.string().email().optional().or(z.literal("")),

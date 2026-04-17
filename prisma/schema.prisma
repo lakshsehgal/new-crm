@@ -22,6 +22,7 @@ enum Role {
 
 enum LeadStatus {
   POTENTIAL
+  INTERESTED
   QUALIFIED
   CUSTOMER
   BAD_FIT

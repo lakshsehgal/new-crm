@@ -47,7 +47,7 @@ const Body = z.object({
   // or fall back to `contactName`. Makes FB Lead Ads flows work out of the
   // box when the form only collects a website, not a company name.
   name: optionalStr,
-  status: z.enum(["POTENTIAL", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"]).optional(),
+  status: z.enum(["POTENTIAL", "INTERESTED", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"]).optional(),
   url: optionalUrl,
   description: optionalStr,
   address: optionalStr,

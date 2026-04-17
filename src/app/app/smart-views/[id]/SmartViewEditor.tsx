@@ -58,7 +58,7 @@ type LeadRow = {
 // Standard lead fields
 const LEAD_FIELDS = [
   { key: "name", label: "Name", type: "text" },
-  { key: "status", label: "Status", type: "enum", options: ["POTENTIAL", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"] },
+  { key: "status", label: "Status", type: "enum", options: ["POTENTIAL", "INTERESTED", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"] },
   { key: "url", label: "URL", type: "text" },
   { key: "description", label: "Description", type: "text" },
   { key: "address", label: "Address", type: "text" },
@@ -92,6 +92,7 @@ const DATE_OPERATORS = [
 
 const statusStyles: Record<string, string> = {
   POTENTIAL: "bg-amber-50 text-amber-700 border-amber-200",
+  INTERESTED: "bg-violet-50 text-violet-700 border-violet-200",
   QUALIFIED: "bg-blue-50 text-blue-700 border-blue-200",
   CUSTOMER: "bg-emerald-50 text-emerald-700 border-emerald-200",
   BAD_FIT: "bg-rose-50 text-rose-700 border-rose-200",

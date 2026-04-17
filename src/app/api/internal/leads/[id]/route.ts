@@ -10,7 +10,7 @@ import { z } from "zod";
 
 const Patch = z.object({
   name: z.string().optional(),
-  status: z.enum(["POTENTIAL", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"]).optional(),
+  status: z.enum(["POTENTIAL", "INTERESTED", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"]).optional(),
   url: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
