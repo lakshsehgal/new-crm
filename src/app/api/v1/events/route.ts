@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { dispatchWebhook } from "@/lib/webhooks";
+import { dispatchWebhookAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 /**
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       const lead = existing
         ? await db.lead.update({ where: { id: existing.id }, data: payload })
         : await db.lead.create({ data: { ...payload, ownerId: caller.userId } });
-      void dispatchWebhook(existing ? "LEAD_UPDATED" : "LEAD_CREATED", lead);
+      dispatchWebhookAfter(existing ? "LEAD_UPDATED" : "LEAD_CREATED", lead);
       return Response.json(lead);
     }
 
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
         : await db.contact.create({
             data: { ...payload, ownerId: caller.userId },
           });
-      void dispatchWebhook(existing ? "CONTACT_UPDATED" : "CONTACT_CREATED", contact);
+      dispatchWebhookAfter(existing ? "CONTACT_UPDATED" : "CONTACT_CREATED", contact);
       return Response.json(contact);
     }
 
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
           ownerId: caller.userId,
         },
       });
-      void dispatchWebhook("OPPORTUNITY_CREATED", opp);
+      dispatchWebhookAfter("OPPORTUNITY_CREATED", opp);
       return Response.json(opp);
     }
 
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
           userId: caller.userId,
         },
       });
-      void dispatchWebhook("ACTIVITY_CREATED", activity);
+      dispatchWebhookAfter("ACTIVITY_CREATED", activity);
       return Response.json(activity);
     }
 
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
           closedAt: stage.isWon || stage.isLost ? new Date() : null,
         },
       });
-      void dispatchWebhook("OPPORTUNITY_STAGE_CHANGED", updated);
+      dispatchWebhookAfter("OPPORTUNITY_STAGE_CHANGED", updated);
       return Response.json(updated);
     }
 

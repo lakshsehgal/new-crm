@@ -1,6 +1,29 @@
+import { after } from "next/server";
 import { db } from "@/lib/db";
 import { hmacSign } from "@/lib/crypto";
 import type { WebhookEvent } from "@prisma/client";
+
+/**
+ * Schedule a webhook dispatch to run after the current response is sent.
+ *
+ * Uses Next.js `after()` so the Vercel serverless function stays alive until
+ * the outbound fetch completes. Plain `void dispatchWebhook(...)` looks fine
+ * in dev but gets killed on Vercel — the function freezes when the response
+ * returns, aborting the TLS handshake and causing ECONNRESET against
+ * hooks.zapier.com / hooks.slack.com / etc.
+ *
+ * Use this inside Next.js route handlers. Plain `dispatchWebhook` can still
+ * be used when you want to await completion (e.g. during a test endpoint).
+ */
+export function dispatchWebhookAfter(event: WebhookEvent, payload: unknown): void {
+  after(async () => {
+    try {
+      await dispatchWebhook(event, payload);
+    } catch (err) {
+      console.error(`[webhook] dispatch ${event} failed:`, err);
+    }
+  });
+}
 
 /**
  * Fan-out a webhook event to all active subscribed endpoints.

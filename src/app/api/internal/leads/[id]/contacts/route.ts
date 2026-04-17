@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { dispatchWebhook } from "@/lib/webhooks";
+import { dispatchWebhookAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 const Body = z.object({
@@ -30,6 +30,6 @@ export async function POST(
       ownerId: user.id,
     },
   });
-  void dispatchWebhook("CONTACT_CREATED", contact);
+  dispatchWebhookAfter("CONTACT_CREATED", contact);
   return Response.json(contact);
 }

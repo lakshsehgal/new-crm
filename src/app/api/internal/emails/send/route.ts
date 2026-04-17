@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendEmail, getRfcMessageId } from "@/lib/gmail";
-import { dispatchWebhook } from "@/lib/webhooks";
+import { dispatchWebhookAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 const Body = z.object({
@@ -69,6 +69,6 @@ export async function POST(req: NextRequest) {
       sentAt: new Date(),
     },
   });
-  void dispatchWebhook("EMAIL_SENT", record);
+  dispatchWebhookAfter("EMAIL_SENT", record);
   return Response.json(record);
 }

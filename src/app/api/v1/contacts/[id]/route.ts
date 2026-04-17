@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { dispatchWebhook } from "@/lib/webhooks";
+import { dispatchWebhookAfter } from "@/lib/webhooks";
 
 export async function GET(
   req: NextRequest,
@@ -24,7 +24,7 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
   const contact = await db.contact.update({ where: { id }, data: body });
-  void dispatchWebhook("CONTACT_UPDATED", contact);
+  dispatchWebhookAfter("CONTACT_UPDATED", contact);
   return Response.json(contact);
 }
 
@@ -36,6 +36,6 @@ export async function DELETE(
   if (!caller) return unauthorized();
   const { id } = await params;
   await db.contact.delete({ where: { id } });
-  void dispatchWebhook("CONTACT_DELETED", { id });
+  dispatchWebhookAfter("CONTACT_DELETED", { id });
   return Response.json({ ok: true });
 }

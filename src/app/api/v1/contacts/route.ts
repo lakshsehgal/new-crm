@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { dispatchWebhook } from "@/lib/webhooks";
+import { dispatchWebhookAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 const Body = z.object({
@@ -64,6 +64,6 @@ export async function POST(req: NextRequest) {
       ownerId: caller.userId,
     },
   });
-  void dispatchWebhook("CONTACT_CREATED", contact);
+  dispatchWebhookAfter("CONTACT_CREATED", contact);
   return Response.json(contact, { status: 201 });
 }

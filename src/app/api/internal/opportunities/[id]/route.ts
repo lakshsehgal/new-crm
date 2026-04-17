@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { dispatchWebhook } from "@/lib/webhooks";
+import { dispatchWebhookAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 const Patch = z.object({
@@ -58,8 +58,8 @@ export async function PATCH(
 
   const opp = await db.opportunity.update({ where: { id }, data: update });
 
-  if (data.stageId) void dispatchWebhook("OPPORTUNITY_STAGE_CHANGED", opp);
-  else void dispatchWebhook("OPPORTUNITY_UPDATED", opp);
+  if (data.stageId) dispatchWebhookAfter("OPPORTUNITY_STAGE_CHANGED", opp);
+  else dispatchWebhookAfter("OPPORTUNITY_UPDATED", opp);
 
   return Response.json(opp);
 }
@@ -71,6 +71,6 @@ export async function DELETE(
   await requireUser();
   const { id } = await params;
   await db.opportunity.delete({ where: { id } });
-  void dispatchWebhook("OPPORTUNITY_DELETED", { id });
+  dispatchWebhookAfter("OPPORTUNITY_DELETED", { id });
   return Response.json({ ok: true });
 }

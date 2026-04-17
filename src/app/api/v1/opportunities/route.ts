@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { dispatchWebhook } from "@/lib/webhooks";
+import { dispatchWebhookAfter } from "@/lib/webhooks";
 import { inheritedCustomData } from "@/lib/opp-inherit";
 import { z } from "zod";
 
@@ -74,6 +74,6 @@ export async function POST(req: NextRequest) {
       customData,
     },
   });
-  void dispatchWebhook("OPPORTUNITY_CREATED", opp);
+  dispatchWebhookAfter("OPPORTUNITY_CREATED", opp);
   return Response.json(opp, { status: 201 });
 }

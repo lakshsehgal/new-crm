@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { dispatchWebhook } from "@/lib/webhooks";
+import { dispatchWebhookAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 const Body = z.object({
@@ -40,6 +40,6 @@ export async function POST(req: NextRequest) {
       userId: user.id,
     },
   });
-  void dispatchWebhook("ACTIVITY_CREATED", activity);
+  dispatchWebhookAfter("ACTIVITY_CREATED", activity);
   return Response.json(activity);
 }

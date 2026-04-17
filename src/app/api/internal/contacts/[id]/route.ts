@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { dispatchWebhook } from "@/lib/webhooks";
+import { dispatchWebhookAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 const Patch = z.object({
@@ -29,7 +29,7 @@ export async function PATCH(
       email: data.email === "" ? null : data.email,
     },
   });
-  void dispatchWebhook("CONTACT_UPDATED", contact);
+  dispatchWebhookAfter("CONTACT_UPDATED", contact);
   return Response.json(contact);
 }
 
@@ -40,6 +40,6 @@ export async function DELETE(
   await requireUser();
   const { id } = await params;
   await db.contact.delete({ where: { id } });
-  void dispatchWebhook("CONTACT_DELETED", { id });
+  dispatchWebhookAfter("CONTACT_DELETED", { id });
   return Response.json({ ok: true });
 }
