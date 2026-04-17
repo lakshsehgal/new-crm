@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { dispatchWebhookAfter } from "@/lib/webhooks";
+import { dispatchOpportunityEventAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 const Body = z.object({
@@ -62,9 +62,9 @@ export async function POST(
   });
 
   if (stageChanged) {
-    dispatchWebhookAfter("OPPORTUNITY_STAGE_CHANGED", updated);
+    dispatchOpportunityEventAfter("OPPORTUNITY_STAGE_CHANGED", id);
   } else {
-    dispatchWebhookAfter("OPPORTUNITY_UPDATED", updated);
+    dispatchOpportunityEventAfter("OPPORTUNITY_UPDATED", id);
   }
   return Response.json(updated);
 }

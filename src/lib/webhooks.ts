@@ -26,6 +26,75 @@ export function dispatchWebhookAfter(event: WebhookEvent, payload: unknown): voi
 }
 
 /**
+ * Fire an OPPORTUNITY_STAGE_CHANGED or OPPORTUNITY_UPDATED webhook with a rich
+ * payload: stage name, lead, contacts, owner, plus flat helper fields like
+ * `stageName` and `primaryContactEmail` for easy Zapier/n8n mapping.
+ *
+ * Zapier in particular struggles to drill into nested arrays in the UI, so
+ * `primaryContactEmail` and `stageName` at the top of the `data` object make
+ * it trivial to (a) filter for stage "No Show" and (b) pipe the email to Kit,
+ * Slack, Mailchimp, etc. in the next step of a Zap.
+ */
+export function dispatchOpportunityEventAfter(
+  event: "OPPORTUNITY_STAGE_CHANGED" | "OPPORTUNITY_UPDATED" | "OPPORTUNITY_CREATED",
+  opportunityId: string,
+): void {
+  after(async () => {
+    try {
+      const opp = await db.opportunity.findUnique({
+        where: { id: opportunityId },
+        include: {
+          stage: {
+            select: { id: true, name: true, isWon: true, isLost: true, probability: true },
+          },
+          pipeline: { select: { id: true, name: true } },
+          lead: {
+            include: {
+              contacts: {
+                orderBy: { createdAt: "asc" },
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  phone: true,
+                  title: true,
+                },
+              },
+            },
+          },
+          owner: { select: { id: true, name: true, email: true } },
+        },
+      });
+      if (!opp) return;
+
+      const primary = opp.lead.contacts[0] ?? null;
+      const primaryName = primary
+        ? [primary.firstName, primary.lastName].filter(Boolean).join(" ") || null
+        : null;
+
+      const payload = {
+        ...opp,
+        // Flattened helpers for easy mapping in Zapier/n8n where drilling
+        // into nested structures is painful.
+        stageName: opp.stage?.name ?? null,
+        stageIsWon: opp.stage?.isWon ?? false,
+        stageIsLost: opp.stage?.isLost ?? false,
+        leadName: opp.lead?.name ?? null,
+        primaryContactEmail: primary?.email ?? null,
+        primaryContactName: primaryName,
+        primaryContactPhone: primary?.phone ?? null,
+        ownerEmail: opp.owner?.email ?? null,
+      };
+
+      await dispatchWebhook(event, payload);
+    } catch (err) {
+      console.error(`[webhook] ${event} enriched dispatch failed:`, err);
+    }
+  });
+}
+
+/**
  * Fan-out a webhook event to all active subscribed endpoints.
  * Sent as fire-and-forget background work; failures are logged in WebhookDelivery.
  */

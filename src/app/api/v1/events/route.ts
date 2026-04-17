@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { dispatchWebhookAfter } from "@/lib/webhooks";
+import { dispatchWebhookAfter, dispatchOpportunityEventAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 /**
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
           ownerId: caller.userId,
         },
       });
-      dispatchWebhookAfter("OPPORTUNITY_CREATED", opp);
+      dispatchOpportunityEventAfter("OPPORTUNITY_CREATED", opp.id);
       return Response.json(opp);
     }
 
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
           closedAt: stage.isWon || stage.isLost ? new Date() : null,
         },
       });
-      dispatchWebhookAfter("OPPORTUNITY_STAGE_CHANGED", updated);
+      dispatchOpportunityEventAfter("OPPORTUNITY_STAGE_CHANGED", updated.id);
       return Response.json(updated);
     }
 

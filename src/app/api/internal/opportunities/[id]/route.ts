@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { dispatchWebhookAfter } from "@/lib/webhooks";
+import { dispatchWebhookAfter, dispatchOpportunityEventAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 const Patch = z.object({
@@ -58,8 +58,8 @@ export async function PATCH(
 
   const opp = await db.opportunity.update({ where: { id }, data: update });
 
-  if (data.stageId) dispatchWebhookAfter("OPPORTUNITY_STAGE_CHANGED", opp);
-  else dispatchWebhookAfter("OPPORTUNITY_UPDATED", opp);
+  if (data.stageId) dispatchOpportunityEventAfter("OPPORTUNITY_STAGE_CHANGED", opp.id);
+  else dispatchOpportunityEventAfter("OPPORTUNITY_UPDATED", opp.id);
 
   return Response.json(opp);
 }
