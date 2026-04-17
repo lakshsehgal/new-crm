@@ -31,12 +31,21 @@ export default function WebhooksUI({
 
   async function create() {
     if (!url.trim()) return toast.error("URL required");
+    if (selected.length === 0) return toast.error("Select at least one event to subscribe to");
+    try {
+      new URL(url.trim());
+    } catch {
+      return toast.error("Invalid URL — must start with http:// or https://");
+    }
     const res = await fetch("/api/internal/admin/webhooks", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ url, description, events: selected }),
+      body: JSON.stringify({ url: url.trim(), description, events: selected }),
     });
-    if (!res.ok) return toast.error("Failed");
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return toast.error(`Failed: ${text.slice(0, 200) || res.statusText}`);
+    }
     setUrl(""); setDescription(""); setSelected([]);
     toast.success("Endpoint added");
     start(() => router.refresh());
@@ -44,8 +53,15 @@ export default function WebhooksUI({
 
   async function test(id: string) {
     const res = await fetch(`/api/internal/admin/webhooks/${id}/test`, { method: "POST" });
-    if (res.ok) toast.success("Test sent");
-    else toast.error("Failed");
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return toast.error(`Failed: ${text.slice(0, 200) || res.statusText}`);
+    }
+    const json = await res.json().catch(() => ({}));
+    if (json.ok === false) {
+      return toast.error(`Test failed: ${json.error ?? "unknown"}`);
+    }
+    toast.success(`Test sent (HTTP ${json.status ?? "200"})`);
   }
 
   async function remove(id: string) {
