@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { dispatchWebhookAfter, dispatchOpportunityEventAfter } from "@/lib/webhooks";
+import {
+  dispatchWebhookAfter,
+  dispatchOpportunityEventAfter,
+  dispatchLeadEventAfter,
+} from "@/lib/webhooks";
 import { z } from "zod";
 
 /**
@@ -47,7 +51,7 @@ export async function POST(req: NextRequest) {
       const lead = existing
         ? await db.lead.update({ where: { id: existing.id }, data: payload })
         : await db.lead.create({ data: { ...payload, ownerId: caller.userId } });
-      dispatchWebhookAfter(existing ? "LEAD_UPDATED" : "LEAD_CREATED", lead);
+      dispatchLeadEventAfter(existing ? "LEAD_UPDATED" : "LEAD_CREATED", lead.id);
       return Response.json(lead);
     }
 

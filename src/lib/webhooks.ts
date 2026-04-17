@@ -133,6 +133,113 @@ export function dispatchOpportunityDeletedAfter(opp: EnrichedOpportunity): void 
  */
 export { loadEnrichedOpportunity };
 
+// ---------- LEAD_* enriched payloads ----------
+
+const LEAD_INCLUDE = {
+  owner: { select: { id: true, name: true, email: true } },
+  contacts: {
+    orderBy: { createdAt: "asc" as const },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      title: true,
+      customData: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
+  opportunities: {
+    select: {
+      id: true,
+      name: true,
+      value: true,
+      stageId: true,
+      pipelineId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
+} as const;
+
+type EnrichedLead = NonNullable<Awaited<ReturnType<typeof loadEnrichedLead>>>;
+
+async function loadEnrichedLead(id: string) {
+  return db.lead.findUnique({
+    where: { id },
+    include: LEAD_INCLUDE,
+  });
+}
+
+/**
+ * Build the flattened, Zapier-friendly payload shape for every LEAD_* webhook.
+ * Includes the full contacts array plus a flattened `primaryContactEmail` /
+ * `primaryContactName` / `primaryContactPhone` for one-click mapping in Zapier.
+ */
+function buildLeadPayload(lead: EnrichedLead) {
+  const primary = lead.contacts?.[0] ?? null;
+  const primaryName = primary
+    ? [primary.firstName, primary.lastName].filter(Boolean).join(" ") || null
+    : null;
+  return {
+    ...lead,
+    // Flattened helpers so Zapier / n8n don't have to drill into arrays.
+    primaryContactEmail: primary?.email ?? null,
+    primaryContactName: primaryName,
+    primaryContactPhone: primary?.phone ?? null,
+    primaryContactTitle: primary?.title ?? null,
+    contactCount: lead.contacts?.length ?? 0,
+    opportunityCount: lead.opportunities?.length ?? 0,
+    ownerEmail: lead.owner?.email ?? null,
+  };
+}
+
+/**
+ * Fire a LEAD_CREATED or LEAD_UPDATED webhook with a rich payload: owner,
+ * every contact on the lead, every opportunity, plus flat helper fields like
+ * `primaryContactEmail` and `contactCount` at the top of `data`.
+ *
+ * Use for CREATED / UPDATED, where the record still exists. For DELETED use
+ * `dispatchLeadDeletedAfter` since the row is gone by the time after() runs.
+ */
+export function dispatchLeadEventAfter(
+  event: "LEAD_CREATED" | "LEAD_UPDATED",
+  leadId: string,
+): void {
+  after(async () => {
+    try {
+      const lead = await loadEnrichedLead(leadId);
+      if (!lead) return;
+      await dispatchWebhook(event, buildLeadPayload(lead));
+    } catch (err) {
+      console.error(`[webhook] ${event} enriched dispatch failed:`, err);
+    }
+  });
+}
+
+/**
+ * Fire LEAD_DELETED with the same enriched payload. Must be called BEFORE
+ * `db.lead.delete(...)` — we snapshot the lead with its relations first.
+ */
+export function dispatchLeadDeletedAfter(lead: EnrichedLead): void {
+  const payload = buildLeadPayload(lead);
+  after(async () => {
+    try {
+      await dispatchWebhook("LEAD_DELETED", payload);
+    } catch (err) {
+      console.error("[webhook] LEAD_DELETED dispatch failed:", err);
+    }
+  });
+}
+
+/**
+ * Load the enriched lead for a delete webhook. Exposed so routes can pre-fetch
+ * before calling `db.lead.delete(...)`.
+ */
+export { loadEnrichedLead };
+
 /**
  * Fan-out a webhook event to all active subscribed endpoints.
  * Sent as fire-and-forget background work; failures are logged in WebhookDelivery.

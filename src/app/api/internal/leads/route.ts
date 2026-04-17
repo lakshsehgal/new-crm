@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { dispatchWebhookAfter } from "@/lib/webhooks";
+import { dispatchLeadEventAfter, dispatchWebhookAfter } from "@/lib/webhooks";
 import { z } from "zod";
 
 /**
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     return { lead, contact };
   });
 
-  dispatchWebhookAfter("LEAD_CREATED", result.lead);
+  dispatchLeadEventAfter("LEAD_CREATED", result.lead.id);
   if (result.contact) dispatchWebhookAfter("CONTACT_CREATED", result.contact);
   return Response.json(result);
 }

@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { dispatchWebhookAfter } from "@/lib/webhooks";
+import {
+  dispatchLeadEventAfter,
+  dispatchLeadDeletedAfter,
+  loadEnrichedLead,
+} from "@/lib/webhooks";
 import { z } from "zod";
 
 const Patch = z.object({
@@ -21,7 +25,7 @@ export async function PATCH(
   const { id } = await params;
   const data = Patch.parse(await req.json());
   const lead = await db.lead.update({ where: { id }, data });
-  dispatchWebhookAfter("LEAD_UPDATED", lead);
+  dispatchLeadEventAfter("LEAD_UPDATED", lead.id);
   return Response.json(lead);
 }
 
@@ -31,7 +35,9 @@ export async function DELETE(
 ) {
   await requireUser();
   const { id } = await params;
+  // Snapshot lead + relations before delete so the webhook still has full context.
+  const snapshot = await loadEnrichedLead(id);
   await db.lead.delete({ where: { id } });
-  dispatchWebhookAfter("LEAD_DELETED", { id });
+  if (snapshot) dispatchLeadDeletedAfter(snapshot);
   return Response.json({ ok: true });
 }

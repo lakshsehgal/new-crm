@@ -1,7 +1,7 @@
 import { NextRequest, after } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { dispatchWebhook } from "@/lib/webhooks";
+import { dispatchWebhook, dispatchLeadEventAfter } from "@/lib/webhooks";
 import { notifyLeadCreated } from "@/lib/mailer";
 import { Prisma } from "@prisma/client";
 import { z, ZodError } from "zod";
@@ -221,10 +221,12 @@ export async function POST(req: NextRequest) {
     // alive until completion, avoiding ECONNRESET on outbound fetches.
     const leadForEmail = result.lead;
     const contactForEmail = result.contact;
-    after(async () => {
-      await dispatchWebhook("LEAD_CREATED", leadForEmail);
-      if (contactForEmail) await dispatchWebhook("CONTACT_CREATED", contactForEmail);
-    });
+    dispatchLeadEventAfter("LEAD_CREATED", result.lead.id);
+    if (contactForEmail) {
+      after(async () => {
+        await dispatchWebhook("CONTACT_CREATED", contactForEmail);
+      });
+    }
     after(async () => {
       try {
         const envTo = (process.env.LEAD_NOTIFICATION_EMAILS ?? "")
