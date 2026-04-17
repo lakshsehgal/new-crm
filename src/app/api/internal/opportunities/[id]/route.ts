@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { dispatchWebhookAfter, dispatchOpportunityEventAfter } from "@/lib/webhooks";
+import {
+  dispatchOpportunityEventAfter,
+  dispatchOpportunityDeletedAfter,
+  loadEnrichedOpportunity,
+} from "@/lib/webhooks";
 import { z } from "zod";
 
 const Patch = z.object({
@@ -70,7 +74,10 @@ export async function DELETE(
 ) {
   await requireUser();
   const { id } = await params;
+  // Snapshot the enriched opportunity BEFORE deleting — the row is gone by the
+  // time the webhook fires, so we capture stage/lead/contact info now.
+  const snapshot = await loadEnrichedOpportunity(id);
   await db.opportunity.delete({ where: { id } });
-  dispatchWebhookAfter("OPPORTUNITY_DELETED", { id });
+  if (snapshot) dispatchOpportunityDeletedAfter(snapshot);
   return Response.json({ ok: true });
 }

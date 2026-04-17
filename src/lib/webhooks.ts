@@ -25,15 +25,74 @@ export function dispatchWebhookAfter(event: WebhookEvent, payload: unknown): voi
   });
 }
 
+// Prisma include for the enriched opportunity payload. Keep in one place so
+// every OPPORTUNITY_* webhook gets the identical shape.
+const OPPORTUNITY_INCLUDE = {
+  stage: {
+    select: { id: true, name: true, isWon: true, isLost: true, probability: true },
+  },
+  pipeline: { select: { id: true, name: true } },
+  lead: {
+    include: {
+      contacts: {
+        orderBy: { createdAt: "asc" as const },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          title: true,
+        },
+      },
+    },
+  },
+  owner: { select: { id: true, name: true, email: true } },
+} as const;
+
+type EnrichedOpportunity = NonNullable<
+  Awaited<ReturnType<typeof loadEnrichedOpportunity>>
+>;
+
+async function loadEnrichedOpportunity(id: string) {
+  return db.opportunity.findUnique({
+    where: { id },
+    include: OPPORTUNITY_INCLUDE,
+  });
+}
+
 /**
- * Fire an OPPORTUNITY_STAGE_CHANGED or OPPORTUNITY_UPDATED webhook with a rich
- * payload: stage name, lead, contacts, owner, plus flat helper fields like
- * `stageName` and `primaryContactEmail` for easy Zapier/n8n mapping.
+ * Build the flattened, Zapier-friendly payload shape used by every
+ * OPPORTUNITY_* webhook. Adds top-level helper fields like `stageName` and
+ * `primaryContactEmail` so downstream tools don't have to drill into nested
+ * arrays in their UI.
+ */
+function buildOpportunityPayload(opp: EnrichedOpportunity) {
+  const primary = opp.lead?.contacts?.[0] ?? null;
+  const primaryName = primary
+    ? [primary.firstName, primary.lastName].filter(Boolean).join(" ") || null
+    : null;
+  return {
+    ...opp,
+    stageName: opp.stage?.name ?? null,
+    stageIsWon: opp.stage?.isWon ?? false,
+    stageIsLost: opp.stage?.isLost ?? false,
+    leadName: opp.lead?.name ?? null,
+    primaryContactEmail: primary?.email ?? null,
+    primaryContactName: primaryName,
+    primaryContactPhone: primary?.phone ?? null,
+    ownerEmail: opp.owner?.email ?? null,
+  };
+}
+
+/**
+ * Fire an OPPORTUNITY_* webhook with a rich payload — stage, pipeline, lead,
+ * contacts, owner, plus flat helper fields (`stageName`, `primaryContactEmail`,
+ * etc.) for easy Zapier/n8n mapping.
  *
- * Zapier in particular struggles to drill into nested arrays in the UI, so
- * `primaryContactEmail` and `stageName` at the top of the `data` object make
- * it trivial to (a) filter for stage "No Show" and (b) pipe the email to Kit,
- * Slack, Mailchimp, etc. in the next step of a Zap.
+ * Use for CREATED / UPDATED / STAGE_CHANGED, where the record still exists and
+ * can be read back from the DB. For DELETED use `dispatchOpportunityDeletedAfter`
+ * since the row is gone by the time `after()` runs.
  */
 export function dispatchOpportunityEventAfter(
   event: "OPPORTUNITY_STAGE_CHANGED" | "OPPORTUNITY_UPDATED" | "OPPORTUNITY_CREATED",
@@ -41,58 +100,38 @@ export function dispatchOpportunityEventAfter(
 ): void {
   after(async () => {
     try {
-      const opp = await db.opportunity.findUnique({
-        where: { id: opportunityId },
-        include: {
-          stage: {
-            select: { id: true, name: true, isWon: true, isLost: true, probability: true },
-          },
-          pipeline: { select: { id: true, name: true } },
-          lead: {
-            include: {
-              contacts: {
-                orderBy: { createdAt: "asc" },
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                  phone: true,
-                  title: true,
-                },
-              },
-            },
-          },
-          owner: { select: { id: true, name: true, email: true } },
-        },
-      });
+      const opp = await loadEnrichedOpportunity(opportunityId);
       if (!opp) return;
-
-      const primary = opp.lead.contacts[0] ?? null;
-      const primaryName = primary
-        ? [primary.firstName, primary.lastName].filter(Boolean).join(" ") || null
-        : null;
-
-      const payload = {
-        ...opp,
-        // Flattened helpers for easy mapping in Zapier/n8n where drilling
-        // into nested structures is painful.
-        stageName: opp.stage?.name ?? null,
-        stageIsWon: opp.stage?.isWon ?? false,
-        stageIsLost: opp.stage?.isLost ?? false,
-        leadName: opp.lead?.name ?? null,
-        primaryContactEmail: primary?.email ?? null,
-        primaryContactName: primaryName,
-        primaryContactPhone: primary?.phone ?? null,
-        ownerEmail: opp.owner?.email ?? null,
-      };
-
-      await dispatchWebhook(event, payload);
+      await dispatchWebhook(event, buildOpportunityPayload(opp));
     } catch (err) {
       console.error(`[webhook] ${event} enriched dispatch failed:`, err);
     }
   });
 }
+
+/**
+ * Fire OPPORTUNITY_DELETED with the same enriched payload shape. Must be called
+ * BEFORE `db.opportunity.delete(...)` — we need to snapshot the opportunity
+ * with its relations before it's gone. Pass the pre-fetched record.
+ */
+export function dispatchOpportunityDeletedAfter(opp: EnrichedOpportunity): void {
+  // Snapshot the payload synchronously so the closure captures it even if the
+  // opportunity row has been deleted by the time after() runs.
+  const payload = buildOpportunityPayload(opp);
+  after(async () => {
+    try {
+      await dispatchWebhook("OPPORTUNITY_DELETED", payload);
+    } catch (err) {
+      console.error("[webhook] OPPORTUNITY_DELETED dispatch failed:", err);
+    }
+  });
+}
+
+/**
+ * Load the enriched opportunity for a delete webhook. Exposed so routes can
+ * pre-fetch before calling `db.opportunity.delete(...)`.
+ */
+export { loadEnrichedOpportunity };
 
 /**
  * Fan-out a webhook event to all active subscribed endpoints.
