@@ -108,6 +108,32 @@ function InlineRow({
   };
 
   if (!editing) {
+    // URL fields: single-click opens link, double-click edits
+    if (kind === "url" && value) {
+      return (
+        <div
+          className="group flex items-center gap-2.5 w-full text-left px-3 py-2 hover:bg-surface/70 rounded transition-colors"
+          onDoubleClick={() => {
+            setLocal(value ?? "");
+            setEditing(true);
+          }}
+        >
+          {icon && <span className="text-mutedSoft flex-shrink-0">{icon}</span>}
+          <a
+            href={value.startsWith("http") ? value : `https://${value}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center gap-1 text-accent break-all text-[13px] min-w-0 hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="truncate">{value}</span>
+            <ExternalLink size={11} className="flex-shrink-0" />
+          </a>
+          {saving && <span className="text-[10px] text-mutedSoft">saving…</span>}
+        </div>
+      );
+    }
+
     return (
       <button
         className="group flex items-center gap-2.5 w-full text-left px-3 py-2 hover:bg-surface/70 rounded transition-colors"
@@ -118,14 +144,7 @@ function InlineRow({
       >
         {icon && <span className="text-mutedSoft flex-shrink-0">{icon}</span>}
         {value ? (
-          kind === "url" ? (
-            <span className="flex-1 flex items-center gap-1 text-accent break-all text-[13px] min-w-0">
-              <span className="truncate">{value}</span>
-              <ExternalLink size={11} className="flex-shrink-0" />
-            </span>
-          ) : (
-            <span className="flex-1 text-[13px] whitespace-pre-wrap">{value}</span>
-          )
+          <span className="flex-1 text-[13px] whitespace-pre-wrap">{value}</span>
         ) : (
           <span className="flex-1 text-[13px] text-mutedSoft">
             Add {label.toLowerCase()}…

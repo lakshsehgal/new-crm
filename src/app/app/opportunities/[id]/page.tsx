@@ -186,9 +186,15 @@ export default async function OpportunityDetailPage({
                   {opp.lead.status.replace("_", " ")}
                 </div>
                 {opp.lead.url && (
-                  <div className="text-[12px] text-muted mt-1 truncate">
+                  <a
+                    href={opp.lead.url.startsWith("http") ? opp.lead.url : `https://${opp.lead.url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12px] text-accent hover:underline mt-1 truncate flex items-center gap-1"
+                  >
                     {opp.lead.url}
-                  </div>
+                    <ExternalLink size={10} className="flex-shrink-0" />
+                  </a>
                 )}
               </div>
             </Section>
