@@ -8,7 +8,9 @@ const Patch = z.object({
   body: z.string().nullable().optional(),
   dueAt: z.string().datetime().nullable().optional(),
   completedAt: z.string().datetime().nullable().optional(),
-  /** Convenience boolean: true => set completedAt to now, false => null */
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
+  assigneeId: z.string().nullable().optional(),
+  reminderAt: z.string().datetime().nullable().optional(),
   completed: z.boolean().optional(),
 });
 
@@ -29,6 +31,10 @@ export async function PATCH(
     update.completedAt = data.completedAt ? new Date(data.completedAt) : null;
   if (data.completed !== undefined)
     update.completedAt = data.completed ? new Date() : null;
+  if (data.priority !== undefined) update.priority = data.priority;
+  if (data.assigneeId !== undefined) update.assigneeId = data.assigneeId;
+  if (data.reminderAt !== undefined)
+    update.reminderAt = data.reminderAt ? new Date(data.reminderAt) : null;
 
   const activity = await db.activity.update({ where: { id }, data: update });
   return Response.json(activity);

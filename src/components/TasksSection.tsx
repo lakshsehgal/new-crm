@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, X, CheckCircle2, Circle } from "lucide-react";
+import { Plus, X, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
 
 type Task = {
   id: string;
@@ -11,6 +11,14 @@ type Task = {
   body: string | null;
   dueAt: string | null;
   completedAt: string | null;
+  priority?: string;
+};
+
+const PRIORITY_DOT: Record<string, string> = {
+  URGENT: "bg-red-500",
+  HIGH: "bg-orange-400",
+  MEDIUM: "bg-blue-400",
+  LOW: "bg-gray-300",
 };
 
 export default function TasksSection({
@@ -28,6 +36,7 @@ export default function TasksSection({
   const [composerOpen, setComposerOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [dueAt, setDueAt] = useState("");
+  const [priority, setPriority] = useState("MEDIUM");
   const [saving, setSaving] = useState(false);
   const router = useRouter();
 
@@ -44,6 +53,7 @@ export default function TasksSection({
         body: JSON.stringify({
           type: "TASK",
           title,
+          priority,
           dueAt: dueAt ? new Date(dueAt).toISOString() : undefined,
           leadId,
           opportunityId,
@@ -62,11 +72,13 @@ export default function TasksSection({
           body: created.body,
           dueAt: created.dueAt,
           completedAt: created.completedAt,
+          priority: created.priority,
         },
         ...prev,
       ]);
       setTitle("");
       setDueAt("");
+      setPriority("MEDIUM");
       setComposerOpen(false);
       router.refresh();
     } finally {
@@ -76,7 +88,6 @@ export default function TasksSection({
 
   async function toggle(t: Task) {
     const next = !t.completedAt;
-    // Optimistic
     setTasks((prev) =>
       prev.map((x) =>
         x.id === t.id
@@ -91,7 +102,6 @@ export default function TasksSection({
     });
     if (!res.ok) {
       toast.error("Failed to update");
-      // Revert
       setTasks((prev) =>
         prev.map((x) =>
           x.id === t.id ? { ...x, completedAt: t.completedAt } : x,
@@ -118,50 +128,79 @@ export default function TasksSection({
   const open = tasks.filter((t) => !t.completedAt);
   const done = tasks.filter((t) => t.completedAt);
 
+  function isOverdue(t: Task): boolean {
+    return !t.completedAt && !!t.dueAt && new Date(t.dueAt) < new Date();
+  }
+
   return (
     <div>
       {tasks.length > 0 && (
         <ul className="divide-y divide-border">
-          {[...open, ...done].map((t) => (
-            <li
-              key={t.id}
-              className="px-4 py-2 text-sm flex items-start gap-2 hover:bg-surface/40"
-            >
-              <button
-                className="mt-0.5 text-mutedSoft hover:text-accent"
-                onClick={() => toggle(t)}
-                title={t.completedAt ? "Mark incomplete" : "Mark complete"}
+          {[...open, ...done].map((t) => {
+            const over = isOverdue(t);
+            return (
+              <li
+                key={t.id}
+                className={
+                  "px-4 py-2 text-sm flex items-start gap-2 hover:bg-surface/40 " +
+                  (over ? "bg-red-50/30" : "")
+                }
               >
-                {t.completedAt ? (
-                  <CheckCircle2 size={15} className="text-emerald-500" />
-                ) : (
-                  <Circle size={15} />
-                )}
-              </button>
-              <div className="flex-1 min-w-0">
-                <div
-                  className={
-                    "truncate " +
-                    (t.completedAt ? "line-through text-mutedSoft" : "")
-                  }
+                <button
+                  className="mt-0.5 text-mutedSoft hover:text-accent"
+                  onClick={() => toggle(t)}
+                  title={t.completedAt ? "Mark incomplete" : "Mark complete"}
                 >
-                  {t.title}
-                </div>
-                {t.dueAt && (
-                  <div className="text-[11px] text-mutedSoft">
-                    Due {new Date(t.dueAt).toLocaleDateString()}
+                  {t.completedAt ? (
+                    <CheckCircle2 size={15} className="text-emerald-500" />
+                  ) : (
+                    <Circle size={15} />
+                  )}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    {t.priority && t.priority !== "MEDIUM" && (
+                      <span
+                        className={`size-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[t.priority] ?? ""}`}
+                        title={t.priority}
+                      />
+                    )}
+                    <span
+                      className={
+                        "truncate " +
+                        (t.completedAt ? "line-through text-mutedSoft" : "")
+                      }
+                    >
+                      {t.title}
+                    </span>
                   </div>
-                )}
-              </div>
-              <button
-                className="text-mutedSoft hover:text-rose-500"
-                onClick={() => remove(t)}
-                title="Delete"
-              >
-                <X size={13} />
-              </button>
-            </li>
-          ))}
+                  {t.dueAt && (
+                    <div
+                      className={
+                        "text-[11px] mt-0.5 " +
+                        (over ? "text-red-600 font-medium" : "text-mutedSoft")
+                      }
+                    >
+                      {over && (
+                        <AlertTriangle
+                          size={10}
+                          className="inline -mt-0.5 mr-0.5"
+                        />
+                      )}
+                      Due {new Date(t.dueAt).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+                <button
+                  className="text-mutedSoft hover:text-rose-500"
+                  onClick={() => remove(t)}
+                  title="Delete"
+                >
+                  <X size={13} />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -181,12 +220,24 @@ export default function TasksSection({
               if (e.key === "Escape") setComposerOpen(false);
             }}
           />
-          <input
-            type="date"
-            className="input"
-            value={dueAt}
-            onChange={(e) => setDueAt(e.target.value)}
-          />
+          <div className="flex gap-2">
+            <select
+              className="input !w-auto"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+            >
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
+            </select>
+            <input
+              type="date"
+              className="input flex-1"
+              value={dueAt}
+              onChange={(e) => setDueAt(e.target.value)}
+            />
+          </div>
           <div className="flex justify-end gap-2">
             <button className="btn" onClick={() => setComposerOpen(false)}>
               Cancel

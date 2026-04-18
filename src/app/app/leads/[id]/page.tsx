@@ -137,6 +137,7 @@ export default async function LeadDetailPage({
                     body: a.body,
                     dueAt: a.dueAt?.toISOString() ?? null,
                     completedAt: a.completedAt?.toISOString() ?? null,
+                    priority: a.priority,
                   }))}
               />
             </Section>

@@ -37,6 +37,13 @@ enum ActivityType {
   EMAIL
 }
 
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 enum CustomFieldType {
   TEXT
   NUMBER
@@ -86,6 +93,7 @@ model User {
   ownedContacts      Contact[]     @relation("ContactOwner")
   ownedOpportunities Opportunity[] @relation("OpportunityOwner")
   activities         Activity[]
+  assignedTasks      Activity[]    @relation("TaskAssignee")
   apiKeys            ApiKey[]
   emails             Email[]
   emailTemplates     EmailTemplate[]
@@ -237,6 +245,11 @@ model Activity {
   body          String?
   dueAt         DateTime?
   completedAt   DateTime?
+  priority      TaskPriority @default(MEDIUM)
+  assigneeId    String?
+  assignee      User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  reminderAt    DateTime?
+  reminded      Boolean      @default(false)
   userId        String?
   user          User?        @relation(fields: [userId], references: [id])
   leadId        String?
@@ -252,6 +265,8 @@ model Activity {
   @@index([leadId])
   @@index([contactId])
   @@index([opportunityId])
+  @@index([assigneeId])
+  @@index([dueAt])
 }
 
 /// A custom field is a workspace-wide definition that applies to every entity

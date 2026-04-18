@@ -16,6 +16,7 @@ import {
   Filter,
   Plus,
   Pin,
+  CheckSquare,
 } from "lucide-react";
 
 type PinnedView = {
@@ -26,9 +27,11 @@ type PinnedView = {
 export default function SidebarNav({
   isAdmin,
   pinnedViews,
+  overdueTaskCount,
 }: {
   isAdmin: boolean;
   pinnedViews?: PinnedView[];
+  overdueTaskCount?: number;
 }) {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
@@ -93,6 +96,13 @@ export default function SidebarNav({
         icon={<ActivityIcon size={15} />}
         label="Activities"
         active={active("/app/activities")}
+      />
+      <NavLink
+        href="/app/tasks"
+        icon={<CheckSquare size={15} className="text-rose-400/90" />}
+        label="Tasks"
+        active={active("/app/tasks")}
+        badge={overdueTaskCount && overdueTaskCount > 0 ? String(overdueTaskCount) : undefined}
       />
 
       {/* Smart Views section */}

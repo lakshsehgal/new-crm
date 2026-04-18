@@ -27,12 +27,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const displayName = me.name || me.email.split("@")[0];
   const roleLabel = me.title || (isAdmin ? "Workspace admin" : "Member");
 
-  // Pinned smart views for sidebar
-  const pinnedViews = await db.smartView.findMany({
-    where: { ownerId: me.id, pinned: true },
-    orderBy: { updatedAt: "desc" },
-    select: { id: true, name: true },
-  });
+  // Sidebar data: pinned smart views + overdue task count
+  const [pinnedViews, overdueTaskCount] = await Promise.all([
+    db.smartView.findMany({
+      where: { ownerId: me.id, pinned: true },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, name: true },
+    }),
+    db.activity.count({
+      where: {
+        type: "TASK",
+        completedAt: null,
+        dueAt: { lt: new Date() },
+        OR: [{ assigneeId: me.id }, { userId: me.id }],
+      },
+    }),
+  ]);
 
   return (
     <div className="min-h-screen grid grid-cols-[232px_1fr] bg-surface">
@@ -46,7 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
 
         <Suspense fallback={<div className="flex-1" />}>
-          <SidebarNav isAdmin={isAdmin} pinnedViews={pinnedViews} />
+          <SidebarNav isAdmin={isAdmin} pinnedViews={pinnedViews} overdueTaskCount={overdueTaskCount} />
         </Suspense>
 
         <div className="px-2 py-2 border-t border-sidebar-border space-y-[2px]">
