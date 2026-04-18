@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import SettingsSidebar from "./SettingsSidebar";
+import SettingsSidebar from "../settings/SettingsSidebar";
 
-export default async function SettingsLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -14,11 +14,11 @@ export default async function SettingsLayout({
     where: { id: (session.user as any).id },
     select: { role: true },
   });
-  const isAdmin = me?.role === "ADMIN";
+  if (me?.role !== "ADMIN") redirect("/app");
 
   return (
     <div className="grid grid-cols-[220px_1fr] h-full">
-      <SettingsSidebar isAdmin={isAdmin} />
+      <SettingsSidebar isAdmin />
       <main className="overflow-y-auto bg-white">{children}</main>
     </div>
   );

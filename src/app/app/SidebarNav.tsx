@@ -9,15 +9,10 @@ import {
   Activity as ActivityIcon,
   LayoutDashboard,
   Trophy,
-  Workflow,
-  SlidersHorizontal,
-  Plug,
-  Shield,
   Filter,
   Plus,
   Pin,
   CheckSquare,
-  Zap,
 } from "lucide-react";
 import BookmarksSection from "./BookmarksSection";
 
@@ -34,12 +29,10 @@ type Bookmark = {
 };
 
 export default function SidebarNav({
-  isAdmin,
   pinnedViews,
   overdueTaskCount,
   bookmarks,
 }: {
-  isAdmin: boolean;
   pinnedViews?: PinnedView[];
   overdueTaskCount?: number;
   bookmarks?: Bookmark[];
@@ -144,44 +137,6 @@ export default function SidebarNav({
 
       {/* Bookmarks section */}
       <BookmarksSection bookmarks={bookmarks ?? []} />
-
-      {isAdmin && (
-        <>
-          <div className="section-label">
-            <span>Workspace</span>
-          </div>
-          <NavLink
-            href="/app/workflows"
-            icon={<Zap size={15} className="text-amber-400/90" />}
-            label="Workflows"
-            active={active("/app/workflows")}
-          />
-          <NavLink
-            href="/app/admin/pipelines"
-            icon={<Workflow size={15} />}
-            label="Pipelines"
-            active={active("/app/admin/pipelines")}
-          />
-          <NavLink
-            href="/app/admin/custom-fields"
-            icon={<SlidersHorizontal size={15} />}
-            label="Custom fields"
-            active={active("/app/admin/custom-fields")}
-          />
-          <NavLink
-            href="/app/admin/webhooks"
-            icon={<Plug size={15} />}
-            label="Webhooks"
-            active={active("/app/admin/webhooks")}
-          />
-          <NavLink
-            href="/app/admin/users"
-            icon={<Shield size={15} />}
-            label="Users & roles"
-            active={active("/app/admin/users")}
-          />
-        </>
-      )}
     </nav>
   );
 }

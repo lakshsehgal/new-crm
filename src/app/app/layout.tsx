@@ -59,7 +59,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <Suspense fallback={<div className="flex-1" />}>
         <SidebarNav
-          isAdmin={isAdmin}
           pinnedViews={pinnedViews}
           overdueTaskCount={overdueTaskCount}
           bookmarks={bookmarks}
