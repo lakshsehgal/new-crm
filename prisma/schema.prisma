@@ -101,6 +101,7 @@ model User {
   invitesSent        Invite[]      @relation("InviteSender")
   smartViews         SmartView[]
   workflows          Workflow[]
+  bookmarks          Bookmark[]
 }
 
 model Account {
@@ -430,4 +431,21 @@ model Workflow {
 
   @@index([ownerId])
   @@index([active])
+}
+
+/// User-saved bookmarks shown in the sidebar. Quick access to docs, SOPs,
+/// shared Notion pages, Google Docs, etc. Ordered per user.
+model Bookmark {
+  id        String   @id @default(cuid())
+  title     String
+  url       String
+  folder    String?  // optional grouping — null = ungrouped
+  order     Int      @default(0)
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, order])
+  @@index([ownerId, folder])
 }

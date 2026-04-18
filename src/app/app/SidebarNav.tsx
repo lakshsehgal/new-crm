@@ -19,20 +19,30 @@ import {
   CheckSquare,
   Zap,
 } from "lucide-react";
+import BookmarksSection from "./BookmarksSection";
 
 type PinnedView = {
   id: string;
   name: string;
 };
 
+type Bookmark = {
+  id: string;
+  title: string;
+  url: string;
+  folder: string | null;
+};
+
 export default function SidebarNav({
   isAdmin,
   pinnedViews,
   overdueTaskCount,
+  bookmarks,
 }: {
   isAdmin: boolean;
   pinnedViews?: PinnedView[];
   overdueTaskCount?: number;
+  bookmarks?: Bookmark[];
 }) {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
@@ -131,6 +141,9 @@ export default function SidebarNav({
           active={pathname === `/app/smart-views/${v.id}`}
         />
       ))}
+
+      {/* Bookmarks section */}
+      <BookmarksSection bookmarks={bookmarks ?? []} />
 
       {isAdmin && (
         <>

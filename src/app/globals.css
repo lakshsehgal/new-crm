@@ -168,6 +168,111 @@ a, button, input, select, textarea, .card, .opp-card, .pill, .kanban-col, .nav-i
   color: theme("colors.sidebar.green");
 }
 
+/* Bookmarks in sidebar */
+.sidebar .bookmark-row {
+  @apply flex items-center gap-1 px-1 relative;
+}
+.sidebar .bookmark-row.bookmark-indent .bookmark-link {
+  padding-left: 1.75rem;
+}
+.sidebar .bookmark-link {
+  @apply flex items-center gap-2 flex-1 min-w-0 px-2 py-[5px] rounded-md text-[12.5px] text-sidebar-ink/85 cursor-pointer select-none;
+}
+.sidebar .bookmark-link:hover { @apply bg-sidebar-hover text-white; }
+.sidebar .bookmark-remove {
+  @apply size-5 grid place-items-center rounded text-sidebar-muted opacity-0 hover:text-rose-400 flex-shrink-0;
+  transition: opacity 110ms ease;
+}
+.sidebar .bookmark-row:hover .bookmark-remove,
+.sidebar .bookmark-folder-head:hover .bookmark-remove {
+  opacity: 1;
+}
+.sidebar .bookmark-empty {
+  @apply px-3 py-1.5 text-[11px] text-sidebar-mutedSoft italic;
+}
+
+/* Folder */
+.sidebar .bookmark-folder-head {
+  @apply flex items-center gap-1 px-1 relative;
+}
+.sidebar .bookmark-folder-toggle {
+  @apply flex items-center gap-1.5 flex-1 min-w-0 px-2 py-[5px] rounded-md text-[12px] font-semibold text-sidebar-ink/90 cursor-pointer select-none;
+}
+.sidebar .bookmark-folder-toggle:hover { @apply bg-sidebar-hover text-white; }
+.sidebar .bookmark-folder-count {
+  @apply text-[10px] text-sidebar-muted font-medium flex-shrink-0;
+}
+
+/* Add form */
+.sidebar .bookmark-add {
+  @apply px-2 py-2 space-y-1.5;
+}
+.sidebar .bookmark-input {
+  @apply w-full rounded px-2 py-1 text-[12px] bg-sidebar-hover text-white border border-sidebar-border outline-none;
+}
+.sidebar .bookmark-input::placeholder { @apply text-sidebar-muted; }
+.sidebar .bookmark-input:focus { @apply border-sidebar-green; }
+
+/* ----- Collapsed sidebar state ----- */
+.sidebar[data-collapsed="true"] .brand-logo-img {
+  max-height: 28px;
+}
+.sidebar[data-collapsed="true"] .nav-item {
+  @apply justify-center px-0 gap-0;
+}
+.sidebar[data-collapsed="true"] .nav-item > span:not(.ico):not(.unread) {
+  display: none;
+}
+.sidebar[data-collapsed="true"] .nav-item .unread {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  margin: 0;
+  padding: 0 4px;
+  min-width: 14px;
+  height: 14px;
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+}
+.sidebar[data-collapsed="true"] .nav-item {
+  position: relative;
+}
+.sidebar[data-collapsed="true"] .nav-sub { display: none; }
+.sidebar[data-collapsed="true"] .section-label {
+  height: 1px;
+  padding: 6px 0;
+  margin: 4px 8px 0;
+  border-top: 1px solid theme("colors.sidebar.border");
+  overflow: hidden;
+  font-size: 0;
+}
+.sidebar[data-collapsed="true"] .section-label > * { display: none; }
+.sidebar[data-collapsed="true"] .footer-link {
+  @apply justify-center px-0;
+}
+.sidebar[data-collapsed="true"] .footer-link > span:not(.ico) { display: none; }
+.sidebar[data-collapsed="true"] .bookmark-row { display: none; }
+.sidebar[data-collapsed="true"] .bookmark-empty { display: none; }
+.sidebar[data-collapsed="true"] .bookmark-folder-head { display: none; }
+.sidebar[data-collapsed="true"] .bookmark-folder { display: none; }
+.sidebar[data-collapsed="true"] .bookmark-add { display: none; }
+.sidebar[data-collapsed="true"] .profile-dock {
+  @apply px-1 py-1 mx-1;
+}
+.sidebar[data-collapsed="true"] .profile-dock .profile-info {
+  display: none;
+}
+.sidebar[data-collapsed="true"] .profile-dock-main {
+  @apply justify-center gap-0;
+}
+.sidebar[data-collapsed="true"] .collapse-bar {
+  @apply justify-center;
+}
+.sidebar[data-collapsed="true"] .brand-row {
+  @apply px-0;
+}
+
 /* ----- Light content ----- */
 .card {
   @apply bg-white border border-border rounded-xl shadow-card;
