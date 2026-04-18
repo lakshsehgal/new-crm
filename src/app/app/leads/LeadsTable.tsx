@@ -12,6 +12,7 @@ type Row = {
   id: string;
   name: string;
   status: string;
+  source: string;
   contactsCount: number;
   opportunitiesCount: number;
   pipelineValue: number;
@@ -32,6 +33,7 @@ const STATUSES = ["POTENTIAL", "QUALIFIED", "INTERESTED", "CUSTOMER", "BAD_FIT",
 
 const COLUMNS = [
   { key: "name", label: "Company", locked: true },
+  { key: "source", label: "Source" },
   { key: "status", label: "Status" },
   { key: "contacts", label: "Contacts" },
   { key: "opps", label: "Opportunities" },
@@ -159,6 +161,7 @@ export default function LeadsTable({ rows }: { rows: Row[] }) {
               </th>
               <th className="!w-10 text-mutedSoft">#</th>
               <th data-col="name">Company</th>
+              <th data-col="source">Source</th>
               <th data-col="status">Status</th>
               <th data-col="contacts">Contacts</th>
               <th data-col="opps">Opps</th>
@@ -188,6 +191,18 @@ export default function LeadsTable({ rows }: { rows: Row[] }) {
                       {l.name}
                     </Link>
                   </td>
+                  <td data-col="source">
+                    <span
+                      className={
+                        "badge " +
+                        (l.source === "API"
+                          ? "bg-cyan-50 text-cyan-700 border-cyan-200"
+                          : "bg-gray-50 text-gray-600 border-gray-200")
+                      }
+                    >
+                      {l.source === "API" ? "API" : "Manual"}
+                    </span>
+                  </td>
                   <td data-col="status">
                     <span className={`badge ${statusStyles[l.status] ?? ""}`}>
                       {l.status.replace("_", " ")}
@@ -209,7 +224,7 @@ export default function LeadsTable({ rows }: { rows: Row[] }) {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={9} className="text-center text-muted py-10">
+                <td colSpan={10} className="text-center text-muted py-10">
                   No leads in this filter. Click "New lead" to add your first
                   company.
                 </td>

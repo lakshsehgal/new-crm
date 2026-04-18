@@ -193,6 +193,7 @@ export async function POST(req: NextRequest) {
         data: {
           name: leadName,
           status: data.status ?? "POTENTIAL",
+          source: "API",
           url: data.url ?? null,
           description: data.description ?? null,
           address: data.address ?? null,

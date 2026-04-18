@@ -44,6 +44,7 @@ export default async function LeadsPage({
     id: l.id,
     name: l.name,
     status: l.status,
+    source: l.source,
     contactsCount: l.contacts.length,
     opportunitiesCount: l.opportunities.length,
     pipelineValue: l.opportunities.reduce(

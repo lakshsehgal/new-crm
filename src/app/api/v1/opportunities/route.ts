@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   if (!leadId && data.leadName) {
     const existing = await db.lead.findFirst({ where: { name: data.leadName } });
     leadId = existing?.id ??
-      (await db.lead.create({ data: { name: data.leadName, ownerId: caller.userId } })).id;
+      (await db.lead.create({ data: { name: data.leadName, source: "API", ownerId: caller.userId } })).id;
   }
   if (!leadId) return Response.json({ error: "leadId or leadName required" }, { status: 400 });
 

@@ -32,6 +32,7 @@ function conditionToLeadClause(cond: FilterCondition): Prisma.LeadWhereInput | n
   // Standard columns
   if (field === "name") return textClause("name", operator, value);
   if (field === "status") return enumClause("status", operator, value);
+  if (field === "source") return enumClause("source", operator, value);
   if (field === "url") return textClause("url", operator, value);
   if (field === "description") return textClause("description", operator, value);
   if (field === "address") return textClause("address", operator, value);

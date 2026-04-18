@@ -27,7 +27,7 @@ async function upsertLeadByName(name: string, ownerId: string) {
   const existing = await db.lead.findFirst({ where: { name } });
   return (
     existing ??
-    (await db.lead.create({ data: { name, ownerId } }))
+    (await db.lead.create({ data: { name, source: "API", ownerId } }))
   );
 }
 
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       };
       const lead = existing
         ? await db.lead.update({ where: { id: existing.id }, data: payload })
-        : await db.lead.create({ data: { ...payload, ownerId: caller.userId } });
+        : await db.lead.create({ data: { ...payload, source: "API", ownerId: caller.userId } });
       dispatchLeadEventAfter(existing ? "LEAD_UPDATED" : "LEAD_CREATED", lead.id);
       return Response.json(lead);
     }

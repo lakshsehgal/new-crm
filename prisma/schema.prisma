@@ -143,6 +143,7 @@ model Lead {
   id          String     @id @default(cuid())
   name        String     // company name
   status      LeadStatus @default(POTENTIAL)
+  source      String     @default("MANUAL") // "MANUAL" or "API"
   url         String?
   description String?
   address     String?
