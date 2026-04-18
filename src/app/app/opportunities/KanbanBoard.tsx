@@ -658,10 +658,18 @@ function QuickNote({ oppId }: { oppId: string }) {
         <MessageSquarePlus size={13} />
       </button>
       {open && (
-        <div
-          className="absolute right-0 top-full mt-1 card shadow-pop z-30 p-3 w-[260px] pop-in"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+            }}
+          />
+          <div
+            className="absolute right-0 top-full mt-1 card shadow-pop z-50 p-3 w-[260px] pop-in"
+            onClick={(e) => e.stopPropagation()}
+          >
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] uppercase tracking-wide text-mutedSoft font-semibold">
               Quick note
@@ -703,6 +711,7 @@ function QuickNote({ oppId }: { oppId: string }) {
             </button>
           </div>
         </div>
+        </>
       )}
     </div>
   );
