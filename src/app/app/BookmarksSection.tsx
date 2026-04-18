@@ -22,6 +22,16 @@ type Bookmark = {
 };
 
 const EXPANDED_KEY = "newcrm:bookmark-folders-expanded";
+const SECTION_KEY = "newcrm:bookmarks-open";
+
+function loadSectionOpen(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return localStorage.getItem(SECTION_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
 
 function loadExpanded(): Record<string, boolean> {
   if (typeof window === "undefined") return {};
@@ -50,6 +60,9 @@ export default function BookmarksSection({
   const [folder, setFolder] = useState("");
   const [newFolderMode, setNewFolderMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sectionOpen, setSectionOpen] = useState(() =>
+    typeof window !== "undefined" ? loadSectionOpen() : true,
+  );
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
     typeof window !== "undefined" ? loadExpanded() : {},
   );
@@ -162,24 +175,41 @@ export default function BookmarksSection({
   return (
     <>
       <div className="section-label">
-        <span>Bookmarks</span>
         <button
-          onClick={() => setAdding(true)}
-          className="size-5 grid place-items-center rounded text-sidebar-muted hover:text-white"
-          title="Add bookmark"
+          onClick={() => {
+            setSectionOpen((prev) => {
+              const next = !prev;
+              try { localStorage.setItem(SECTION_KEY, next ? "1" : "0"); } catch {}
+              return next;
+            });
+          }}
+          className="flex items-center gap-1"
         >
-          <Plus size={12} />
+          <ChevronRight
+            size={10}
+            className={"transition-transform " + (sectionOpen ? "rotate-90" : "")}
+          />
+          <span>Bookmarks</span>
         </button>
+        {sectionOpen && (
+          <button
+            onClick={() => setAdding(true)}
+            className="size-5 grid place-items-center rounded text-sidebar-muted hover:text-white"
+            title="Add bookmark"
+          >
+            <Plus size={12} />
+          </button>
+        )}
       </div>
 
-      {!hasAnyBookmarks && !adding && (
+      {sectionOpen && !hasAnyBookmarks && !adding && (
         <div className="bookmark-empty">
           <span>No bookmarks yet</span>
         </div>
       )}
 
       {/* Folders */}
-      {folderNames.map((name) => {
+      {sectionOpen && folderNames.map((name) => {
         const isOpen = !!expanded[name];
         const items = folders[name] ?? [];
         return (
@@ -226,12 +256,12 @@ export default function BookmarksSection({
       })}
 
       {/* Ungrouped bookmarks */}
-      {ungrouped.map((b) => (
+      {sectionOpen && ungrouped.map((b) => (
         <BookmarkRow key={b.id} bookmark={b} onRemove={remove} />
       ))}
 
       {/* Add form */}
-      {adding && (
+      {sectionOpen && adding && (
         <div className="bookmark-add">
           <input
             autoFocus
