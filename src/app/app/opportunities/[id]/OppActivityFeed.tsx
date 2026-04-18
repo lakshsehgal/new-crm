@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import SendEmailButton from "@/components/SendEmailButton";
+import LeadEmailAutoSync from "@/components/LeadEmailAutoSync";
 
 type Activity = {
   id: string;
@@ -109,6 +110,9 @@ export default function OppActivityFeed({
         <button className="btn" title="Log a call">
           <Phone size={14} /> Call
         </button>
+        <div className="ml-auto">
+          <LeadEmailAutoSync leadId={leadId} />
+        </div>
       </div>
 
       <div className="px-5 pt-4 border-b border-border bg-white">

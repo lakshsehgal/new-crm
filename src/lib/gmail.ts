@@ -2,10 +2,6 @@ import { google, gmail_v1 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "@/lib/db";
 
-/**
- * Build a Google OAuth2 client for a given CRM user, refreshing the access
- * token via the refresh_token stored on their Google Account record.
- */
 export async function getGmailClient(userId: string): Promise<gmail_v1.Gmail | null> {
   const account = await db.account.findFirst({
     where: { userId, provider: "google" },
@@ -43,8 +39,13 @@ function header(m: gmail_v1.Schema$Message, name: string): string | undefined {
 function parseAddress(raw?: string): { email: string; name?: string } {
   if (!raw) return { email: "" };
   const match = raw.match(/^\s*(?:"?([^"<]+?)"?\s*)?<([^>]+)>\s*$/);
-  if (match) return { name: match[1]?.trim(), email: match[2]!.trim() };
-  return { email: raw.trim() };
+  if (match) return { name: match[1]?.trim(), email: match[2]!.trim().toLowerCase() };
+  return { email: raw.trim().toLowerCase() };
+}
+
+function parseAddressList(raw?: string): string[] {
+  if (!raw) return [];
+  return raw.split(",").map((a) => parseAddress(a).email).filter(Boolean);
 }
 
 function decode(b64url?: string | null): string {
@@ -70,57 +71,101 @@ function extractBody(payload?: gmail_v1.Schema$MessagePart): { text: string; htm
 }
 
 /**
- * Sync the most recent inbox messages for a user, upserting them by gmailId.
+ * Ingest a single Gmail message into the Email table. Handles direction
+ * correctly based on whether the current user is the sender, and matches the
+ * email to a Contact by looking up the "other side" of the conversation
+ * (From for inbound, each To/Cc for outbound).
  */
-export async function syncInbox(userId: string, max = 25): Promise<number> {
+async function ingestMessage(
+  gmail: gmail_v1.Gmail,
+  userId: string,
+  myEmail: string,
+  ref: { id?: string | null },
+): Promise<boolean> {
+  if (!ref.id) return false;
+  const full = await gmail.users.messages.get({ userId: "me", id: ref.id, format: "full" });
+  const m = full.data;
+  const from = parseAddress(header(m, "From"));
+  const to = parseAddressList(header(m, "To"));
+  const cc = parseAddressList(header(m, "Cc"));
+  const subject = header(m, "Subject") ?? "(no subject)";
+  const date = Number(m.internalDate ?? Date.now());
+  const { text, html } = extractBody(m.payload);
+
+  const isOutbound = myEmail && from.email === myEmail;
+  const direction = isOutbound ? "outbound" : "inbound";
+
+  // Contact match: pick the "other side" of the conversation
+  const counterpartyEmails = isOutbound ? [...to, ...cc] : [from.email];
+  let contactId: string | null = null;
+  for (const addr of counterpartyEmails) {
+    if (!addr) continue;
+    const c = await db.contact.findFirst({
+      where: { email: { equals: addr, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (c) {
+      contactId = c.id;
+      break;
+    }
+  }
+
+  await db.email.upsert({
+    where: { gmailId: m.id! },
+    update: {
+      contactId: contactId ?? undefined,
+      toEmails: [...to, ...cc],
+      direction,
+    },
+    create: {
+      gmailId: m.id!,
+      threadId: m.threadId ?? null,
+      userId,
+      contactId,
+      fromEmail: from.email,
+      fromName: from.name ?? null,
+      toEmails: [...to, ...cc],
+      subject,
+      snippet: m.snippet ?? null,
+      bodyText: text || null,
+      bodyHtml: html || null,
+      direction,
+      sentAt: new Date(date),
+    },
+  });
+  return true;
+}
+
+/**
+ * Sync recent mail for a user (both inbound and outbound). Messages older
+ * than the last `max` are fetched on-demand via `syncEmailsForAddress`.
+ */
+export async function syncInbox(userId: string, max = 200): Promise<number> {
   const gmail = await getGmailClient(userId);
   if (!gmail) return 0;
 
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  const myEmail = user?.email?.toLowerCase() ?? "";
+
+  // No label filter: list returns both INBOX and SENT by default.
+  // Exclude chats and drafts only.
   const list = await gmail.users.messages.list({
     userId: "me",
     maxResults: max,
-    q: "-in:chats",
+    q: "-in:chats -in:drafts",
   });
   const messages = list.data.messages ?? [];
   let upserted = 0;
 
   for (const ref of messages) {
-    if (!ref.id) continue;
-    const full = await gmail.users.messages.get({ userId: "me", id: ref.id, format: "full" });
-    const m = full.data;
-    const from = parseAddress(header(m, "From"));
-    const to = (header(m, "To") ?? "")
-      .split(",")
-      .map((a) => parseAddress(a).email)
-      .filter(Boolean);
-    const subject = header(m, "Subject") ?? "(no subject)";
-    const date = Number(m.internalDate ?? Date.now());
-    const { text, html } = extractBody(m.payload);
-
-    const contact = from.email
-      ? await db.contact.findFirst({ where: { email: from.email } })
-      : null;
-
-    await db.email.upsert({
-      where: { gmailId: m.id! },
-      update: {},
-      create: {
-        gmailId: m.id!,
-        threadId: m.threadId ?? null,
-        userId,
-        contactId: contact?.id ?? null,
-        fromEmail: from.email,
-        fromName: from.name ?? null,
-        toEmails: to,
-        subject,
-        snippet: m.snippet ?? null,
-        bodyText: text || null,
-        bodyHtml: html || null,
-        direction: "inbound",
-        sentAt: new Date(date),
-      },
-    });
-    upserted++;
+    try {
+      if (await ingestMessage(gmail, userId, myEmail, ref)) upserted++;
+    } catch (err) {
+      console.error(`[gmail] ingest ${ref.id} failed:`, err);
+    }
   }
 
   await db.gmailSync.upsert({
@@ -133,10 +178,44 @@ export async function syncInbox(userId: string, max = 25): Promise<number> {
 }
 
 /**
- * Send an email through the authenticated user's Gmail account.
- * Supports threading: pass threadId + inReplyToMessageId to attach to an
- * existing Gmail thread (Reply / Forward).
+ * Fetch every email in the user's Gmail that involves a specific address
+ * (either from: or to:). Used when opening a lead — pulls the full history
+ * for each contact on-demand, so we're not bound by the last N synced msgs.
  */
+export async function syncEmailsForAddress(
+  userId: string,
+  address: string,
+  max = 100,
+): Promise<number> {
+  const gmail = await getGmailClient(userId);
+  if (!gmail) return 0;
+
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  const myEmail = user?.email?.toLowerCase() ?? "";
+
+  const escaped = address.replace(/"/g, "");
+  const list = await gmail.users.messages.list({
+    userId: "me",
+    maxResults: max,
+    q: `from:${escaped} OR to:${escaped}`,
+  });
+  const messages = list.data.messages ?? [];
+  let upserted = 0;
+
+  for (const ref of messages) {
+    try {
+      if (await ingestMessage(gmail, userId, myEmail, ref)) upserted++;
+    } catch (err) {
+      console.error(`[gmail] ingest ${ref.id} failed:`, err);
+    }
+  }
+
+  return upserted;
+}
+
 export async function sendEmail(
   userId: string,
   args: {
@@ -145,8 +224,8 @@ export async function sendEmail(
     bodyText?: string;
     bodyHtml?: string;
     threadId?: string | null;
-    inReplyToMessageId?: string | null; // Gmail message id we're replying to
-    inReplyToRfcId?: string | null; // RFC-822 Message-Id header value
+    inReplyToMessageId?: string | null;
+    inReplyToRfcId?: string | null;
   },
 ): Promise<{ id: string; threadId: string } | null> {
   const gmail = await getGmailClient(userId);
@@ -177,10 +256,6 @@ export async function sendEmail(
   return { id: res.data.id!, threadId: res.data.threadId! };
 }
 
-/**
- * Fetch the RFC-822 Message-Id of a Gmail message by its Gmail id. Used so we
- * can set In-Reply-To / References headers when replying.
- */
 export async function getRfcMessageId(
   userId: string,
   gmailId: string,
