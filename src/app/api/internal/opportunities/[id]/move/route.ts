@@ -1,7 +1,8 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { dispatchOpportunityEventAfter } from "@/lib/webhooks";
+import { executeWorkflows } from "@/lib/workflow-engine";
 import { z } from "zod";
 
 const Body = z.object({
@@ -63,6 +64,14 @@ export async function POST(
 
   if (stageChanged) {
     dispatchOpportunityEventAfter("OPPORTUNITY_STAGE_CHANGED", id);
+    after(() =>
+      executeWorkflows("OPPORTUNITY_STAGE_CHANGED", {
+        opportunityId: id,
+        leadId: current.leadId,
+        stageName: destStage.name,
+        userId: current.ownerId ?? undefined,
+      }),
+    );
   } else {
     dispatchOpportunityEventAfter("OPPORTUNITY_UPDATED", id);
   }

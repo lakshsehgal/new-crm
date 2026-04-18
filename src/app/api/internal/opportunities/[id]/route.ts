@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -6,6 +6,7 @@ import {
   dispatchOpportunityDeletedAfter,
   loadEnrichedOpportunity,
 } from "@/lib/webhooks";
+import { executeWorkflows } from "@/lib/workflow-engine";
 import { z } from "zod";
 
 const Patch = z.object({
@@ -62,8 +63,22 @@ export async function PATCH(
 
   const opp = await db.opportunity.update({ where: { id }, data: update });
 
-  if (data.stageId) dispatchOpportunityEventAfter("OPPORTUNITY_STAGE_CHANGED", opp.id);
-  else dispatchOpportunityEventAfter("OPPORTUNITY_UPDATED", opp.id);
+  if (data.stageId) {
+    dispatchOpportunityEventAfter("OPPORTUNITY_STAGE_CHANGED", opp.id);
+    const stage = await db.pipelineStage.findUnique({ where: { id: data.stageId } });
+    if (stage) {
+      after(() =>
+        executeWorkflows("OPPORTUNITY_STAGE_CHANGED", {
+          opportunityId: opp.id,
+          leadId: opp.leadId,
+          stageName: stage.name,
+          userId: opp.ownerId ?? undefined,
+        }),
+      );
+    }
+  } else {
+    dispatchOpportunityEventAfter("OPPORTUNITY_UPDATED", opp.id);
+  }
 
   return Response.json(opp);
 }

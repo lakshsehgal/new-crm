@@ -22,8 +22,8 @@ enum Role {
 
 enum LeadStatus {
   POTENTIAL
-  INTERESTED
   QUALIFIED
+  INTERESTED
   CUSTOMER
   BAD_FIT
   CHURNED
@@ -100,6 +100,7 @@ model User {
   gmailSync          GmailSync?
   invitesSent        Invite[]      @relation("InviteSender")
   smartViews         SmartView[]
+  workflows          Workflow[]
 }
 
 model Account {
@@ -412,4 +413,21 @@ model SmartView {
   updatedAt DateTime @updatedAt
 
   @@index([ownerId])
+}
+
+/// Internal automation workflow. A trigger (e.g. lead status changes to
+/// QUALIFIED) fires one or more actions (e.g. create a task with a 24h due date).
+model Workflow {
+  id        String   @id @default(cuid())
+  name      String
+  active    Boolean  @default(true)
+  trigger   Json     // { event: "LEAD_STATUS_CHANGED", conditions: { status: "QUALIFIED" } }
+  actions   Json     // [{ type: "CREATE_TASK", config: { title: "...", priority: "HIGH", dueInHours: 24 } }]
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([active])
 }

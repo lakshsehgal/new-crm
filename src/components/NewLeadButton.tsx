@@ -13,6 +13,7 @@ export default function NewLeadButton({ label = "New lead" }: Props) {
   const [open, setOpen] = useState(false);
   const [company, setCompany] = useState("");
   const [contact, setContact] = useState("");
+  const [saving, setSaving] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
 
@@ -22,29 +23,34 @@ export default function NewLeadButton({ label = "New lead" }: Props) {
   }
 
   async function create() {
+    if (saving) return;
     if (!company.trim()) {
       toast.error("Company name is required");
       return;
     }
-    const res = await fetch("/api/internal/leads", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        name: company.trim(),
-        contactName: contact.trim() || undefined,
-      }),
-    });
-    if (!res.ok) {
-      toast.error("Failed to create lead");
-      return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/internal/leads", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: company.trim(),
+          contactName: contact.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        toast.error("Failed to create lead");
+        return;
+      }
+      const j = (await res.json()) as { lead: { id: string } };
+      toast.success("Lead created");
+      setOpen(false);
+      reset();
+      router.push(`/app/leads/${j.lead.id}`);
+      start(() => router.refresh());
+    } finally {
+      setSaving(false);
     }
-    const j = (await res.json()) as { lead: { id: string } };
-    toast.success("Lead created");
-    setOpen(false);
-    reset();
-    // Navigate to the new lead detail page
-    router.push(`/app/leads/${j.lead.id}`);
-    start(() => router.refresh());
   }
 
   return (
@@ -107,10 +113,10 @@ export default function NewLeadButton({ label = "New lead" }: Props) {
               <button className="btn" onClick={() => setOpen(false)}>Cancel</button>
               <button
                 className="btn-primary disabled:opacity-60"
-                disabled={pending || !company.trim()}
+                disabled={saving || !company.trim()}
                 onClick={create}
               >
-                {pending ? "Creating…" : "Create lead"}
+                {saving ? "Creating…" : "Create lead"}
               </button>
             </div>
           </div>

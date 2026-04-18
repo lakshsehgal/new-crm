@@ -58,7 +58,7 @@ type LeadRow = {
 // Standard lead fields
 const LEAD_FIELDS = [
   { key: "name", label: "Name", type: "text" },
-  { key: "status", label: "Status", type: "enum", options: ["POTENTIAL", "INTERESTED", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"] },
+  { key: "status", label: "Status", type: "enum", options: ["POTENTIAL", "QUALIFIED", "INTERESTED", "CUSTOMER", "BAD_FIT", "CHURNED"] },
   { key: "url", label: "URL", type: "text" },
   { key: "description", label: "Description", type: "text" },
   { key: "address", label: "Address", type: "text" },

@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -6,11 +6,12 @@ import {
   dispatchLeadDeletedAfter,
   loadEnrichedLead,
 } from "@/lib/webhooks";
+import { executeWorkflows } from "@/lib/workflow-engine";
 import { z } from "zod";
 
 const Patch = z.object({
   name: z.string().optional(),
-  status: z.enum(["POTENTIAL", "INTERESTED", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"]).optional(),
+  status: z.enum(["POTENTIAL", "QUALIFIED", "INTERESTED", "CUSTOMER", "BAD_FIT", "CHURNED"]).optional(),
   url: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
@@ -26,6 +27,15 @@ export async function PATCH(
   const data = Patch.parse(await req.json());
   const lead = await db.lead.update({ where: { id }, data });
   dispatchLeadEventAfter("LEAD_UPDATED", lead.id);
+  if (data.status) {
+    after(() =>
+      executeWorkflows("LEAD_STATUS_CHANGED", {
+        leadId: lead.id,
+        status: data.status,
+        userId: lead.ownerId ?? undefined,
+      }),
+    );
+  }
   return Response.json(lead);
 }
 

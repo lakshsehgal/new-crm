@@ -28,7 +28,7 @@ const statusStyles: Record<string, string> = {
   CHURNED: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
-const STATUSES = ["POTENTIAL", "INTERESTED", "QUALIFIED", "CUSTOMER", "BAD_FIT", "CHURNED"];
+const STATUSES = ["POTENTIAL", "QUALIFIED", "INTERESTED", "CUSTOMER", "BAD_FIT", "CHURNED"];
 
 const COLUMNS = [
   { key: "name", label: "Company", locked: true },

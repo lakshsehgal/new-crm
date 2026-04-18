@@ -17,6 +17,7 @@ import {
   Plus,
   Pin,
   CheckSquare,
+  Zap,
 } from "lucide-react";
 
 type PinnedView = {
@@ -136,6 +137,12 @@ export default function SidebarNav({
           <div className="section-label">
             <span>Workspace</span>
           </div>
+          <NavLink
+            href="/app/workflows"
+            icon={<Zap size={15} className="text-amber-400/90" />}
+            label="Workflows"
+            active={active("/app/workflows")}
+          />
           <NavLink
             href="/app/admin/pipelines"
             icon={<Workflow size={15} />}
