@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -13,8 +14,20 @@ import {
   Plus,
   Pin,
   CheckSquare,
+  ChevronRight,
 } from "lucide-react";
 import BookmarksSection from "./BookmarksSection";
+
+const SMART_VIEWS_OPEN_KEY = "newcrm:smart-views-open";
+
+function loadSmartViewsOpen(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return localStorage.getItem(SMART_VIEWS_OPEN_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
 
 type PinnedView = {
   id: string;
@@ -52,6 +65,17 @@ export default function SidebarNav({
   }
 
   const views = pinnedViews ?? [];
+  const [smartViewsOpen, setSmartViewsOpen] = useState(() =>
+    typeof window !== "undefined" ? loadSmartViewsOpen() : true,
+  );
+
+  function toggleSmartViews() {
+    setSmartViewsOpen((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(SMART_VIEWS_OPEN_KEY, next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }
 
   return (
     <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-[2px]">
@@ -111,29 +135,44 @@ export default function SidebarNav({
 
       {/* Smart Views section */}
       <div className="section-label">
-        <span>Smart Views</span>
-        <Link
-          href="/app/smart-views/new"
-          className="size-5 grid place-items-center rounded text-sidebar-muted hover:text-white"
-          title="New smart view"
+        <button
+          onClick={toggleSmartViews}
+          className="flex items-center gap-1"
         >
-          <Plus size={12} />
-        </Link>
+          <ChevronRight
+            size={10}
+            className={"transition-transform " + (smartViewsOpen ? "rotate-90" : "")}
+          />
+          <span>Smart Views</span>
+        </button>
+        {smartViewsOpen && (
+          <Link
+            href="/app/smart-views/new"
+            className="size-5 grid place-items-center rounded text-sidebar-muted hover:text-white"
+            title="New smart view"
+          >
+            <Plus size={12} />
+          </Link>
+        )}
       </div>
-      <NavLink
-        href="/app/smart-views"
-        icon={<Filter size={15} className="text-indigo-400/90" />}
-        label="All Views"
-        active={active("/app/smart-views", true)}
-      />
-      {views.map((v) => (
-        <NavSub
-          key={v.id}
-          href={`/app/smart-views/${v.id}`}
-          label={v.name}
-          active={pathname === `/app/smart-views/${v.id}`}
-        />
-      ))}
+      {smartViewsOpen && (
+        <>
+          <NavLink
+            href="/app/smart-views"
+            icon={<Filter size={15} className="text-indigo-400/90" />}
+            label="All Views"
+            active={active("/app/smart-views", true)}
+          />
+          {views.map((v) => (
+            <NavSub
+              key={v.id}
+              href={`/app/smart-views/${v.id}`}
+              label={v.name}
+              active={pathname === `/app/smart-views/${v.id}`}
+            />
+          ))}
+        </>
+      )}
 
       {/* Bookmarks section */}
       <BookmarksSection bookmarks={bookmarks ?? []} />
