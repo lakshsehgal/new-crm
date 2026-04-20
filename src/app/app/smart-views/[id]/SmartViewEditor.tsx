@@ -15,6 +15,10 @@ import {
   Search,
   Trash2,
   X,
+  MessageSquarePlus,
+  StickyNote,
+  Check,
+  Columns3,
 } from "lucide-react";
 
 type Condition = {
@@ -420,93 +424,289 @@ export default function SmartViewEditor({
           </div>
         </div>
 
-        {/* Results table */}
+        {/* Results */}
         {results !== null && (
-          <div className="p-6">
-            {results.length === 0 ? (
-              <div className="card p-8 text-center text-muted text-sm">
-                No leads match these filters.
-              </div>
-            ) : (
-              <div className="card overflow-hidden">
-                <table className="tbl">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Company</th>
-                      <th>Status</th>
-                      <th>Contacts</th>
-                      <th>Pipeline value</th>
-                      <th>Owner</th>
-                      <th>Updated</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((l, idx) => {
-                      const pipelineVal = l.opportunities.reduce(
-                        (s, o) => s + Number(o.value ?? 0),
-                        0,
-                      );
-                      const primaryContact = l.contacts[0];
-                      const contactName = primaryContact
-                        ? [primaryContact.firstName, primaryContact.lastName]
-                            .filter(Boolean)
-                            .join(" ") || primaryContact.email
-                        : null;
-                      return (
-                        <tr key={l.id}>
-                          <td className="text-mutedSoft text-[12px]">
-                            {idx + 1}
-                          </td>
-                          <td>
-                            <Link
-                              href={`/app/leads/${l.id}`}
-                              className="font-medium text-accent hover:underline"
-                            >
-                              {l.name}
-                            </Link>
-                          </td>
-                          <td>
-                            <span
-                              className={`badge ${statusStyles[l.status] ?? ""}`}
-                            >
-                              {l.status.replace("_", " ")}
-                            </span>
-                          </td>
-                          <td>
-                            {contactName ? (
-                              <div>
-                                <div className="text-sm">{contactName}</div>
-                                {primaryContact?.email && (
-                                  <div className="text-[11px] text-muted">
-                                    {primaryContact.email}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-muted">—</span>
-                            )}
-                          </td>
-                          <td>
-                            {pipelineVal > 0
-                              ? formatMoney(pipelineVal)
-                              : "—"}
-                          </td>
-                          <td className="text-muted">
-                            {l.owner?.email ?? "—"}
-                          </td>
-                          <td className="text-muted">
-                            {new Date(l.updatedAt).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <SmartViewResults results={results} />
         )}
+      </div>
+    </div>
+  );
+}
+
+// ---- Results table with column picker + quick note ----
+
+const RESULT_COLUMNS = [
+  { key: "name", label: "Company", locked: true },
+  { key: "source", label: "Source" },
+  { key: "status", label: "Status" },
+  { key: "contactName", label: "Contact name" },
+  { key: "contactEmail", label: "Contact email" },
+  { key: "contactPhone", label: "Contact phone" },
+  { key: "value", label: "Pipeline value" },
+  { key: "owner", label: "Owner" },
+  { key: "updated", label: "Updated" },
+  { key: "actions", label: "Actions" },
+];
+
+function SmartViewResults({ results }: { results: LeadRow[] }) {
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem("newcrm:cols:smartview");
+      if (raw) return new Set(JSON.parse(raw));
+    } catch {}
+    return new Set<string>();
+  });
+  const [colPickerOpen, setColPickerOpen] = useState(false);
+  const [noteFor, setNoteFor] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const router = useRouter();
+
+  function toggleCol(key: string) {
+    setHiddenCols((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      try { localStorage.setItem("newcrm:cols:smartview", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }
+
+  function vis(key: string) {
+    return !hiddenCols.has(key);
+  }
+
+  async function saveNote(leadId: string) {
+    if (!noteText.trim()) return;
+    setNoteSaving(true);
+    try {
+      const res = await fetch("/api/internal/activities", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          leadId,
+          type: "NOTE",
+          title: noteText.slice(0, 80),
+          body: noteText,
+        }),
+      });
+      if (!res.ok) return toast.error("Failed");
+      toast.success("Note added");
+      setNoteFor(null);
+      setNoteText("");
+      router.refresh();
+    } finally {
+      setNoteSaving(false);
+    }
+  }
+
+  if (results.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="card p-8 text-center text-muted text-sm">
+          No leads match these filters.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] text-muted">
+          {results.length} lead{results.length !== 1 ? "s" : ""}
+        </span>
+        <div className="relative">
+          <button className="pill" onClick={() => setColPickerOpen((o) => !o)}>
+            <Columns3 size={13} />
+            Columns
+            {hiddenCols.size > 0 && (
+              <span className="text-[10px] bg-accent text-white rounded-full px-1.5 ml-1">
+                {RESULT_COLUMNS.length - hiddenCols.size}
+              </span>
+            )}
+          </button>
+          {colPickerOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setColPickerOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 card shadow-pop z-40 py-1 min-w-[200px] pop-in">
+                <div className="px-3 py-1.5 text-[10.5px] uppercase tracking-wide text-mutedSoft">
+                  Visible columns
+                </div>
+                {RESULT_COLUMNS.map((c) => {
+                  const visible = !hiddenCols.has(c.key);
+                  return (
+                    <button
+                      key={c.key}
+                      onClick={() => !c.locked && toggleCol(c.key)}
+                      className={
+                        "w-full text-left text-sm px-3 py-1.5 flex items-center gap-2 " +
+                        (c.locked ? "opacity-60 cursor-not-allowed" : "hover:bg-surface")
+                      }
+                      disabled={c.locked}
+                    >
+                      <span
+                        className={
+                          "size-4 rounded border grid place-items-center " +
+                          (visible ? "bg-accent border-accent text-white" : "border-border")
+                        }
+                      >
+                        {visible && <Check size={10} />}
+                      </span>
+                      <span className="flex-1">{c.label}</span>
+                      {c.locked && <span className="text-[10px] text-mutedSoft">locked</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="card overflow-hidden">
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th className="!w-8">#</th>
+              <th>Company</th>
+              {vis("source") && <th>Source</th>}
+              {vis("status") && <th>Status</th>}
+              {vis("contactName") && <th>Contact</th>}
+              {vis("contactEmail") && <th>Email</th>}
+              {vis("contactPhone") && <th>Phone</th>}
+              {vis("value") && <th>Pipeline value</th>}
+              {vis("owner") && <th>Owner</th>}
+              {vis("updated") && <th>Updated</th>}
+              {vis("actions") && <th className="!w-10" />}
+            </tr>
+          </thead>
+          <tbody>
+            {results.map((l, idx) => {
+              const pipelineVal = l.opportunities.reduce(
+                (s, o) => s + Number(o.value ?? 0),
+                0,
+              );
+              const pc = l.contacts[0];
+              const contactName = pc
+                ? [pc.firstName, pc.lastName].filter(Boolean).join(" ") || pc.email
+                : null;
+
+              return (
+                <tr key={l.id} className="group">
+                  <td className="text-mutedSoft text-[12px]">{idx + 1}</td>
+                  <td>
+                    <Link
+                      href={`/app/leads/${l.id}`}
+                      className="font-medium text-accent hover:underline"
+                    >
+                      {l.name}
+                    </Link>
+                    {/* Inline note */}
+                    {noteFor === l.id && (
+                      <div className="mt-1.5 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          autoFocus
+                          className="input !py-1 !text-[12px] flex-1"
+                          placeholder="Quick note…"
+                          value={noteText}
+                          onChange={(e) => setNoteText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void saveNote(l.id);
+                            if (e.key === "Escape") { setNoteFor(null); setNoteText(""); }
+                          }}
+                        />
+                        <button
+                          className="btn-primary !py-1 !px-2 !text-[11px]"
+                          disabled={noteSaving || !noteText.trim()}
+                          onClick={() => void saveNote(l.id)}
+                        >
+                          {noteSaving ? "…" : "Save"}
+                        </button>
+                        <button
+                          className="size-6 grid place-items-center rounded text-muted hover:bg-surface"
+                          onClick={() => { setNoteFor(null); setNoteText(""); }}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  {vis("source") && (
+                    <td>
+                      <span
+                        className={
+                          "badge " +
+                          ((l as any).source === "API"
+                            ? "bg-cyan-50 text-cyan-700 border-cyan-200"
+                            : "bg-gray-50 text-gray-600 border-gray-200")
+                        }
+                      >
+                        {(l as any).source === "API" ? "API" : "Manual"}
+                      </span>
+                    </td>
+                  )}
+                  {vis("status") && (
+                    <td>
+                      <span className={`badge ${statusStyles[l.status] ?? ""}`}>
+                        {l.status.replace("_", " ")}
+                      </span>
+                    </td>
+                  )}
+                  {vis("contactName") && (
+                    <td className="text-[13px]">{contactName ?? "—"}</td>
+                  )}
+                  {vis("contactEmail") && (
+                    <td className="text-[13px]">
+                      {pc?.email ? (
+                        <a href={`mailto:${pc.email}`} className="text-accent hover:underline">
+                          {pc.email}
+                        </a>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                  )}
+                  {vis("contactPhone") && (
+                    <td className="text-[13px]">
+                      {pc?.phone ? (
+                        <a href={`tel:${pc.phone}`} className="text-accent hover:underline">
+                          {pc.phone}
+                        </a>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                  )}
+                  {vis("value") && (
+                    <td>{pipelineVal > 0 ? formatMoney(pipelineVal) : "—"}</td>
+                  )}
+                  {vis("owner") && (
+                    <td className="text-muted">{l.owner?.email ?? "—"}</td>
+                  )}
+                  {vis("updated") && (
+                    <td className="text-muted">
+                      {new Date(l.updatedAt).toLocaleDateString()}
+                    </td>
+                  )}
+                  {vis("actions") && (
+                    <td>
+                      <button
+                        className="size-6 grid place-items-center rounded text-mutedSoft hover:bg-surface hover:text-ink opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Quick note"
+                        onClick={() => {
+                          setNoteFor(noteFor === l.id ? null : l.id);
+                          setNoteText("");
+                        }}
+                      >
+                        <StickyNote size={13} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
