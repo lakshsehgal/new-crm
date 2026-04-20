@@ -1,7 +1,8 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { dispatchWebhookAfter } from "@/lib/webhooks";
+import { executeWorkflows } from "@/lib/workflow-engine";
 import { z } from "zod";
 
 const Body = z.object({
@@ -47,5 +48,30 @@ export async function POST(req: NextRequest) {
     },
   });
   dispatchWebhookAfter("ACTIVITY_CREATED", activity);
+
+  // Resolve names for workflow context
+  after(async () => {
+    let leadName: string | undefined;
+    let oppName: string | undefined;
+    if (activity.leadId) {
+      const l = await db.lead.findUnique({ where: { id: activity.leadId }, select: { name: true } });
+      leadName = l?.name ?? undefined;
+    }
+    if (activity.opportunityId) {
+      const o = await db.opportunity.findUnique({ where: { id: activity.opportunityId }, select: { name: true } });
+      oppName = o?.name ?? undefined;
+    }
+    await executeWorkflows("ACTIVITY_CREATED", {
+      leadId: activity.leadId ?? undefined,
+      opportunityId: activity.opportunityId ?? undefined,
+      contactId: activity.contactId ?? undefined,
+      activityType: activity.type,
+      activityTitle: activity.title,
+      leadName,
+      oppName,
+      userId: user.id,
+    });
+  });
+
   return Response.json(activity);
 }
