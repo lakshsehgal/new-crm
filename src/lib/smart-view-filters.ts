@@ -38,6 +38,8 @@ function conditionToLeadClause(cond: FilterCondition): Prisma.LeadWhereInput | n
   if (field === "address") return textClause("address", operator, value);
   if (field === "createdAt") return dateClause("createdAt", operator, value);
   if (field === "updatedAt") return dateClause("updatedAt", operator, value);
+  if (field === "hasOpenTasks") return hasOpenTasksClause(operator, value);
+  if (field === "hasOverdueTasks") return hasOverdueTasksClause(operator, value);
 
   // Custom data fields (customData.someKey)
   if (field.startsWith("customData.")) {
@@ -166,4 +168,47 @@ function customDataClause(
     default:
       return null;
   }
+}
+
+/**
+ * "Has open tasks" — true if the lead has at least one incomplete task.
+ */
+function hasOpenTasksClause(
+  operator: string,
+  value: unknown,
+): Prisma.LeadWhereInput | null {
+  const wantTrue = operator === "eq" ? isTruthy(value) : operator === "neq" ? !isTruthy(value) : null;
+  if (wantTrue === null) return null;
+  const cond: Prisma.LeadWhereInput = {
+    activities: { some: { type: "TASK", completedAt: null } },
+  };
+  return wantTrue ? cond : { NOT: cond };
+}
+
+/**
+ * "Has overdue tasks" — true if the lead has at least one incomplete task
+ * whose due date is in the past.
+ */
+function hasOverdueTasksClause(
+  operator: string,
+  value: unknown,
+): Prisma.LeadWhereInput | null {
+  const wantTrue = operator === "eq" ? isTruthy(value) : operator === "neq" ? !isTruthy(value) : null;
+  if (wantTrue === null) return null;
+  const cond: Prisma.LeadWhereInput = {
+    activities: {
+      some: {
+        type: "TASK",
+        completedAt: null,
+        dueAt: { lt: new Date() },
+      },
+    },
+  };
+  return wantTrue ? cond : { NOT: cond };
+}
+
+function isTruthy(v: unknown): boolean {
+  if (v === true) return true;
+  if (typeof v === "string") return v === "yes" || v === "true" || v === "1";
+  return false;
 }

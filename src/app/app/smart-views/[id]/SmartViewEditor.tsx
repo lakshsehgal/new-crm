@@ -65,6 +65,8 @@ const LEAD_FIELDS = [
   { key: "address", label: "Address", type: "text" },
   { key: "createdAt", label: "Date created", type: "date" },
   { key: "updatedAt", label: "Date updated", type: "date" },
+  { key: "hasOpenTasks", label: "Has open tasks", type: "enum", options: ["yes", "no"] },
+  { key: "hasOverdueTasks", label: "Has overdue tasks", type: "enum", options: ["yes", "no"] },
 ];
 
 const TEXT_OPERATORS = [
