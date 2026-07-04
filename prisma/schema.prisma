@@ -147,6 +147,10 @@ model Lead {
   url         String?
   description String?
   address     String?
+  // Meta-generated Lead ID (15–17 digits) from the originating Facebook/
+  // Instagram Lead Ad. Captured at ingest so we can send Conversions API
+  // events back to Meta keyed to the exact lead. Null for non-Meta leads.
+  metaLeadId  String?
   customData  Json       @default("{}")
   ownerId     String?
   owner       User?      @relation("LeadOwner", fields: [ownerId], references: [id])
@@ -159,6 +163,7 @@ model Lead {
 
   @@index([status])
   @@index([ownerId])
+  @@index([metaLeadId])
 }
 
 model Contact {
@@ -375,6 +380,29 @@ model EmailTemplate {
   updatedAt DateTime @updatedAt
 
   @@index([createdBy])
+}
+
+/// Delivery log for Meta Conversions API (CAPI) events. One row per event we
+/// attempt to POST to Meta's dataset endpoint when a lead's status changes.
+/// Mirrors the WebhookDelivery pattern so failures are debuggable in the DB
+/// (open Events Manager → Diagnostics to cross-check on Meta's side).
+model MetaCapiEvent {
+  id         String     @id @default(cuid())
+  leadId     String?
+  eventName  String
+  status     LeadStatus
+  metaLeadId String?
+  eventId    String // dedup key sent to Meta as event_id
+  httpStatus Int?
+  fbTraceId  String? // Meta's fbtrace_id from the response, for support tickets
+  eventsReceived Int? // events_received echoed back by Meta on success
+  response   String?    @db.Text
+  error      String?    @db.Text
+  testMode   Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+
+  @@index([leadId, createdAt])
+  @@index([createdAt])
 }
 
 model Email {

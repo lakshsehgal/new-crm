@@ -118,6 +118,51 @@ const expected = crypto.createHmac("sha256", "<your-secret>").update(body).diges
 return { ok: crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signature, "hex")) };
 ```
 
+## Meta Conversions API (lead-quality feedback loop)
+
+Facebook/Instagram Lead Ads are sent into the CRM (via Zapier → `POST
+/api/v1/leads`). When your team then qualifies or **disqualifies** a lead, the
+CRM sends a server event back to Meta's **Conversions API** so Meta learns which
+leads are good and which are junk — and optimizes ad delivery toward the good
+ones. This is Meta's "CRM integration for Conversions API" (Events Manager →
+Connect data).
+
+**How it works**
+
+1. At ingest, `POST /api/v1/leads` stores Meta's `lead_id` on the lead
+   (`metaLeadId`). Send it as `metaLeadId`, `lead_id`, `fbLeadId`, or
+   `fb_lead_id` — in Zapier's *Facebook Lead Ads* trigger this is the lead's
+   `id` field. This is the highest-priority match key, so map it.
+2. When a lead is created, an initial `Lead` event fires (the raw-lead stage).
+3. When a lead's **status** changes, `PATCH /api/internal/leads/:id` fires an
+   event for the new stage. The CRM status → Meta `event_name` map defaults to:
+
+   | CRM status  | Meta event_name    | Meaning                     |
+   | ----------- | ------------------ | --------------------------- |
+   | `POTENTIAL` | `Lead`             | raw lead                    |
+   | `QUALIFIED` | `QualifiedLead`    | good lead                   |
+   | `CUSTOMER`  | `Purchase`         | converted                   |
+   | `BAD_FIT`   | `DisqualifiedLead` | **junk / unqualified lead** |
+   | `CHURNED`   | `ChurnedLead`      | lost customer               |
+
+   Override with `META_CAPI_EVENT_MAP` (JSON); set a stage to `""` to skip it.
+
+All PII (email, phone, name) is SHA-256 hashed before it leaves the server, per
+Meta's requirement. Every attempt is logged to the `MetaCapiEvent` table
+(HTTP status, `fbtrace_id`, `events_received`, errors) for debugging — cross-check
+against Events Manager → Diagnostics.
+
+**Setup** — set these env vars (all optional; blank `DATASET_ID`/`ACCESS_TOKEN`
+disables the integration):
+
+```
+META_CAPI_DATASET_ID=523876770030049   # your dataset/pixel ID
+META_CAPI_ACCESS_TOKEN=...             # Events Manager → Create endpoint → Generate Access Token
+META_CAPI_API_VERSION=v25.0
+META_CAPI_TEST_EVENT_CODE=TEST12345    # optional; routes to the Test events tab while verifying
+META_CAPI_DEFAULT_COUNTRY_CODE=91      # optional; prefixes bare 10-digit phones before hashing
+```
+
 ## Events emitted
 
 `CONTACT_CREATED`, `CONTACT_UPDATED`, `CONTACT_DELETED`,
