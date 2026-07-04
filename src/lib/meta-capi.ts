@@ -60,6 +60,7 @@ export function isCapiConfigured(): boolean {
 const DEFAULT_EVENT_MAP: Record<LeadStatus, string> = {
   POTENTIAL: "Lead", // initial raw lead
   QUALIFIED: "QualifiedLead",
+  INTERESTED: "InterestedLead", // warm mid-funnel signal
   CUSTOMER: "Purchase",
   BAD_FIT: "DisqualifiedLead",
   CHURNED: "ChurnedLead",
