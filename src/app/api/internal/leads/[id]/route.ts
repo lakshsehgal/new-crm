@@ -7,6 +7,7 @@ import {
   loadEnrichedLead,
 } from "@/lib/webhooks";
 import { executeWorkflows } from "@/lib/workflow-engine";
+import { sendCapiLeadEvent } from "@/lib/meta-capi";
 import { z } from "zod";
 
 const Patch = z.object({
@@ -25,6 +26,21 @@ export async function PATCH(
   await requireUser();
   const { id } = await params;
   const data = Patch.parse(await req.json());
+
+  // Grab the previous status (+ primary contact for PII matching) before the
+  // update so we only fire a CAPI event when the status actually changes.
+  const before = await db.lead.findUnique({
+    where: { id },
+    select: {
+      status: true,
+      contacts: {
+        orderBy: { createdAt: "asc" },
+        take: 1,
+        select: { email: true, phone: true, firstName: true, lastName: true },
+      },
+    },
+  });
+
   const lead = await db.lead.update({ where: { id }, data });
   dispatchLeadEventAfter("LEAD_UPDATED", lead.id);
   if (data.status) {
@@ -36,6 +52,21 @@ export async function PATCH(
       }),
     );
   }
+
+  // Feed the lead's new stage back to Meta's Conversions API. This is the
+  // signal that teaches Meta which leads are good (QUALIFIED/CUSTOMER) and
+  // which are junk (BAD_FIT → DisqualifiedLead), so it optimizes accordingly.
+  // Run in after() so it completes on serverless even after the response ships.
+  if (data.status && before && data.status !== before.status) {
+    after(() =>
+      sendCapiLeadEvent({
+        lead,
+        contact: before.contacts[0] ?? null,
+        status: data.status!,
+      }),
+    );
+  }
+
   return Response.json(lead);
 }
 

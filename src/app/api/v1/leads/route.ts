@@ -2,6 +2,7 @@ import { NextRequest, after } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { dispatchWebhook, dispatchLeadEventAfter } from "@/lib/webhooks";
+import { sendCapiLeadEvent } from "@/lib/meta-capi";
 import { notifyLeadCreated } from "@/lib/mailer";
 import { Prisma } from "@prisma/client";
 import { z, ZodError } from "zod";
@@ -54,6 +55,13 @@ const Body = z.object({
   // Lead-level custom fields, keyed by CustomField.key. Empty-string values
   // get stripped below so the UI doesn't show blank fields.
   customData: z.record(z.any()).optional(),
+  // Meta-generated Lead ID from the Facebook/Instagram Lead Ad. Accept the
+  // common field names integrators use so it maps out of the box (Zapier's
+  // Facebook Lead Ads trigger exposes it as "id"/"lead_id"). Coalesced below.
+  metaLeadId: optionalStr,
+  lead_id: optionalStr,
+  fbLeadId: optionalStr,
+  fb_lead_id: optionalStr,
   // Optional first contact fields
   contactName: optionalStr,
   contactEmail: optionalEmail,
@@ -187,6 +195,14 @@ export async function POST(req: NextRequest) {
   const cleanLeadCustom = stripEmpty(data.customData);
   const cleanContactCustom = stripEmpty(data.contactCustomData);
 
+  // Coalesce the various names integrators use for Meta's lead_id.
+  const metaLeadId =
+    data.metaLeadId?.trim() ||
+    data.lead_id?.trim() ||
+    data.fbLeadId?.trim() ||
+    data.fb_lead_id?.trim() ||
+    null;
+
   try {
     const result = await db.$transaction(async (tx) => {
       const lead = await tx.lead.create({
@@ -197,6 +213,7 @@ export async function POST(req: NextRequest) {
           url: data.url ?? null,
           description: data.description ?? null,
           address: data.address ?? null,
+          metaLeadId,
           customData: cleanLeadCustom as Prisma.InputJsonValue,
           ownerId: caller.userId,
         },
@@ -228,6 +245,21 @@ export async function POST(req: NextRequest) {
         await dispatchWebhook("CONTACT_CREATED", contactForEmail);
       });
     }
+
+    // Report the initial funnel stage (usually POTENTIAL → "Lead") to Meta's
+    // Conversions API. Meta wants an event for every stage a lead enters,
+    // including the raw-lead stage, so it can attribute later quality signals.
+    after(() =>
+      sendCapiLeadEvent({
+        lead: result.lead,
+        contact: result.contact,
+        status: result.lead.status,
+      }),
+    );
+
+    // Fire new-lead email alert. Recipients come from the
+    // LEAD_NOTIFICATION_EMAILS env var (comma-separated) if set, otherwise
+    // fall back to the API key owner's email so it "just works" out of the box.
     after(async () => {
       try {
         const envTo = (process.env.LEAD_NOTIFICATION_EMAILS ?? "")
