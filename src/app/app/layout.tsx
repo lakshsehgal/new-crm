@@ -9,6 +9,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { initials } from "@/lib/utils";
+import { openDiscoveryCallWhere } from "@/lib/discovery-call";
 import GlobalSearch from "@/components/GlobalSearch";
 import BrandLogo from "@/components/BrandLogo";
 import SidebarNav from "./SidebarNav";
@@ -24,6 +25,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   });
   if (!me) redirect("/signin");
   const isAdmin = me.role === "ADMIN";
+  const discoveryCallsDue = await db.activity.count({
+    where: openDiscoveryCallWhere,
+  });
   const displayName = me.name || me.email.split("@")[0];
   const roleLabel = me.title || (isAdmin ? "Workspace admin" : "Member");
 
@@ -62,6 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           pinnedViews={pinnedViews}
           overdueTaskCount={overdueTaskCount}
           bookmarks={bookmarks}
+          discoveryCallsDue={discoveryCallsDue}
         />
       </Suspense>
 

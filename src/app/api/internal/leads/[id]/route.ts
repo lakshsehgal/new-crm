@@ -7,6 +7,7 @@ import {
   loadEnrichedLead,
 } from "@/lib/webhooks";
 import { executeWorkflows } from "@/lib/workflow-engine";
+import { ensureDiscoveryCallTask } from "@/lib/discovery-call";
 import { z } from "zod";
 
 const Patch = z.object({
@@ -22,10 +23,17 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
   const data = Patch.parse(await req.json());
+  const before = data.status
+    ? await db.lead.findUnique({ where: { id }, select: { status: true } })
+    : null;
   const lead = await db.lead.update({ where: { id }, data });
+  // Entering QUALIFIED opens a discovery-call ticket for the lead
+  if (data.status === "QUALIFIED" && before?.status !== "QUALIFIED") {
+    await ensureDiscoveryCallTask(id, user.id);
+  }
   dispatchLeadEventAfter("LEAD_UPDATED", lead.id);
   if (data.status) {
     after(() =>

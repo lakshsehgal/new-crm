@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { dispatchLeadEventAfter, dispatchWebhookAfter } from "@/lib/webhooks";
+import { ensureDiscoveryCallTask } from "@/lib/discovery-call";
 import { z } from "zod";
 
 /**
@@ -61,6 +62,11 @@ export async function POST(req: NextRequest) {
     }
     return { lead, contact };
   });
+
+  // Leads created directly as QUALIFIED get their discovery-call ticket too
+  if (result.lead.status === "QUALIFIED") {
+    await ensureDiscoveryCallTask(result.lead.id, user.id);
+  }
 
   dispatchLeadEventAfter("LEAD_CREATED", result.lead.id);
   if (result.contact) dispatchWebhookAfter("CONTACT_CREATED", result.contact);

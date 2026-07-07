@@ -15,6 +15,7 @@ import {
   Pin,
   CheckSquare,
   ChevronRight,
+  PhoneCall,
 } from "lucide-react";
 import BookmarksSection from "./BookmarksSection";
 
@@ -45,10 +46,12 @@ export default function SidebarNav({
   pinnedViews,
   overdueTaskCount,
   bookmarks,
+  discoveryCallsDue = 0,
 }: {
   pinnedViews?: PinnedView[];
   overdueTaskCount?: number;
   bookmarks?: Bookmark[];
+  discoveryCallsDue?: number;
 }) {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
@@ -112,6 +115,13 @@ export default function SidebarNav({
         icon={<Target size={15} />}
         label="Leads"
         active={active("/app/leads")}
+      />
+      <NavLink
+        href="/app/discovery-calls"
+        icon={<PhoneCall size={15} className="text-emerald-400/90" />}
+        label="Discovery calls"
+        badge={discoveryCallsDue > 0 ? String(discoveryCallsDue) : undefined}
+        active={active("/app/discovery-calls")}
       />
       <NavLink
         href="/app/contacts"

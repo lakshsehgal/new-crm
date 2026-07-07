@@ -2,6 +2,7 @@ import { NextRequest, after } from "next/server";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { dispatchWebhook, dispatchLeadEventAfter } from "@/lib/webhooks";
+import { ensureDiscoveryCallTask } from "@/lib/discovery-call";
 import { notifyLeadCreated } from "@/lib/mailer";
 import { Prisma } from "@prisma/client";
 import { z, ZodError } from "zod";
@@ -226,6 +227,17 @@ export async function POST(req: NextRequest) {
     if (contactForEmail) {
       after(async () => {
         await dispatchWebhook("CONTACT_CREATED", contactForEmail);
+      });
+    }
+    // Leads that arrive already qualified (e.g. via Zapier) get their
+    // discovery-call ticket too.
+    if (result.lead.status === "QUALIFIED") {
+      after(async () => {
+        try {
+          await ensureDiscoveryCallTask(result.lead.id, caller.userId);
+        } catch (err) {
+          console.error("[leads] discovery-call ticket failed:", err);
+        }
       });
     }
     after(async () => {
