@@ -184,31 +184,90 @@ export async function POST(req: NextRequest) {
   );
   const [firstName, ...rest] = (data.contactName ?? "").trim().split(/\s+/);
   const lastName = rest.join(" ") || undefined;
+  const contactEmail = data.contactEmail?.trim().toLowerCase() || null;
 
   const cleanLeadCustom = stripEmpty(data.customData);
   const cleanContactCustom = stripEmpty(data.contactCustomData);
 
   try {
     const result = await db.$transaction(async (tx) => {
-      const lead = await tx.lead.create({
-        data: {
-          name: leadName,
-          status: data.status ?? "POTENTIAL",
-          source: "API",
-          url: data.url ?? null,
-          description: data.description ?? null,
-          address: data.address ?? null,
-          customData: cleanLeadCustom as Prisma.InputJsonValue,
-          ownerId: caller.userId,
-        },
-      });
+      // Dedupe: a submission whose contact email matches an existing contact
+      // is the same person coming back (form re-submits, Zapier retries), so
+      // update the existing records instead of creating twins.
+      const existingContact = contactEmail
+        ? await tx.contact.findFirst({
+            where: { email: { equals: contactEmail, mode: "insensitive" } },
+            orderBy: { createdAt: "asc" },
+          })
+        : null;
+
+      // Resolve the target lead: the matched contact's lead wins, then a
+      // lead with the same name, then a brand-new one.
+      let lead =
+        (existingContact?.leadId
+          ? await tx.lead.findUnique({ where: { id: existingContact.leadId } })
+          : null) ??
+        (await tx.lead.findFirst({
+          where: { name: { equals: leadName, mode: "insensitive" } },
+          orderBy: { createdAt: "asc" },
+        }));
+
+      const leadCreated = !lead;
+      if (lead) {
+        lead = await tx.lead.update({
+          where: { id: lead.id },
+          data: {
+            status: data.status ?? lead.status,
+            url: data.url ?? lead.url,
+            description: data.description ?? lead.description,
+            address: data.address ?? lead.address,
+            customData: {
+              ...((lead.customData as Record<string, unknown>) ?? {}),
+              ...cleanLeadCustom,
+            } as Prisma.InputJsonValue,
+          },
+        });
+      } else {
+        lead = await tx.lead.create({
+          data: {
+            name: leadName,
+            status: data.status ?? "POTENTIAL",
+            source: "API",
+            url: data.url ?? null,
+            description: data.description ?? null,
+            address: data.address ?? null,
+            customData: cleanLeadCustom as Prisma.InputJsonValue,
+            ownerId: caller.userId,
+          },
+        });
+      }
+
       let contact = null;
-      if (shouldMakeContact) {
+      let contactCreated = false;
+      if (existingContact) {
+        contact = await tx.contact.update({
+          where: { id: existingContact.id },
+          data: {
+            firstName: firstName || existingContact.firstName,
+            lastName: lastName ?? existingContact.lastName,
+            email: contactEmail,
+            phone: data.contactPhone ?? existingContact.phone,
+            title: data.contactTitle ?? existingContact.title,
+            customData: {
+              ...((existingContact.customData as Record<string, unknown>) ?? {}),
+              ...cleanContactCustom,
+            } as Prisma.InputJsonValue,
+            // Keep the contact on its lead; only attach if it was orphaned.
+            leadId: existingContact.leadId ?? lead.id,
+          },
+        });
+      } else if (shouldMakeContact) {
+        contactCreated = true;
         contact = await tx.contact.create({
           data: {
             firstName: firstName || null,
             lastName: lastName || null,
-            email: data.contactEmail || null,
+            email: contactEmail,
             phone: data.contactPhone || null,
             title: data.contactTitle || null,
             customData: cleanContactCustom as Prisma.InputJsonValue,
@@ -217,16 +276,19 @@ export async function POST(req: NextRequest) {
           },
         });
       }
-      return { lead, contact };
+      return { lead, contact, leadCreated, contactCreated };
     });
     // Use after() for all background work so Vercel keeps the function
     // alive until completion, avoiding ECONNRESET on outbound fetches.
     const leadForEmail = result.lead;
     const contactForEmail = result.contact;
-    dispatchLeadEventAfter("LEAD_CREATED", result.lead.id);
+    dispatchLeadEventAfter(result.leadCreated ? "LEAD_CREATED" : "LEAD_UPDATED", result.lead.id);
     if (contactForEmail) {
       after(async () => {
-        await dispatchWebhook("CONTACT_CREATED", contactForEmail);
+        await dispatchWebhook(
+          result.contactCreated ? "CONTACT_CREATED" : "CONTACT_UPDATED",
+          contactForEmail,
+        );
       });
     }
     // Leads that arrive already qualified (e.g. via Zapier) get their
@@ -240,7 +302,9 @@ export async function POST(req: NextRequest) {
         }
       });
     }
-    after(async () => {
+    // New-lead email alert. Skipped for deduped re-submissions so the team
+    // isn't re-alerted when the same person comes back.
+    if (result.leadCreated) after(async () => {
       try {
         const envTo = (process.env.LEAD_NOTIFICATION_EMAILS ?? "")
           .split(",")
@@ -288,7 +352,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return Response.json(result, { status: 201 });
+    return Response.json(result, { status: result.leadCreated ? 201 : 200 });
   } catch (err) {
     console.error("POST /api/v1/leads failed:", err);
     const message = err instanceof Error ? err.message : "Internal error";

@@ -24,7 +24,10 @@ const Body = z.object({
 });
 
 async function upsertLeadByName(name: string, ownerId: string) {
-  const existing = await db.lead.findFirst({ where: { name } });
+  const existing = await db.lead.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
+    orderBy: { createdAt: "asc" },
+  });
   return (
     existing ??
     (await db.lead.create({ data: { name, source: "API", ownerId } }))
@@ -40,7 +43,10 @@ export async function POST(req: NextRequest) {
     case "lead.upsert": {
       const name = String(data.name ?? "").trim();
       if (!name) return Response.json({ error: "name required" }, { status: 400 });
-      const existing = await db.lead.findFirst({ where: { name } });
+      const existing = await db.lead.findFirst({
+        where: { name: { equals: name, mode: "insensitive" } },
+        orderBy: { createdAt: "asc" },
+      });
       const payload = {
         name,
         status: (data.status ?? existing?.status ?? "POTENTIAL") as any,
@@ -63,7 +69,10 @@ export async function POST(req: NextRequest) {
         const l = await upsertLeadByName(String(data.leadName), caller.userId);
         leadId = l.id;
       }
-      const existing = await db.contact.findFirst({ where: { email } });
+      const existing = await db.contact.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        orderBy: { createdAt: "asc" },
+      });
       const payload = {
         email,
         firstName: data.firstName ?? existing?.firstName ?? null,
@@ -122,7 +131,7 @@ export async function POST(req: NextRequest) {
       }
       if (data.contactEmail) {
         const c = await db.contact.findFirst({
-          where: { email: String(data.contactEmail) },
+          where: { email: { equals: String(data.contactEmail).trim(), mode: "insensitive" } },
         });
         contactId = c?.id ?? null;
         if (c && !leadId) leadId = c.leadId;

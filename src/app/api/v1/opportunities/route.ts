@@ -51,7 +51,10 @@ export async function POST(req: NextRequest) {
   // Resolve lead — either by id or upsert by name
   let leadId = data.leadId;
   if (!leadId && data.leadName) {
-    const existing = await db.lead.findFirst({ where: { name: data.leadName } });
+    const existing = await db.lead.findFirst({
+      where: { name: { equals: data.leadName, mode: "insensitive" } },
+      orderBy: { createdAt: "asc" },
+    });
     leadId = existing?.id ??
       (await db.lead.create({ data: { name: data.leadName, source: "API", ownerId: caller.userId } })).id;
   }

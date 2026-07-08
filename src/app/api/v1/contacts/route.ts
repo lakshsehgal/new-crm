@@ -44,26 +44,54 @@ export async function POST(req: NextRequest) {
   const caller = await authenticateApiRequest(req);
   if (!caller) return unauthorized();
   const data = Body.parse(await req.json());
+  const email = data.email?.trim().toLowerCase() || undefined;
 
   let leadId = data.leadId;
   if (!leadId && data.leadName) {
-    const existing = await db.lead.findFirst({ where: { name: data.leadName } });
+    const existing = await db.lead.findFirst({
+      where: { name: { equals: data.leadName, mode: "insensitive" } },
+      orderBy: { createdAt: "asc" },
+    });
     leadId = existing?.id ??
       (await db.lead.create({ data: { name: data.leadName, source: "API", ownerId: caller.userId } })).id;
   }
 
-  const contact = await db.contact.create({
-    data: {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      phone: data.phone,
-      title: data.title,
-      leadId: leadId ?? null,
-      customData: data.customData,
-      ownerId: caller.userId,
-    },
-  });
-  dispatchWebhookAfter("CONTACT_CREATED", contact);
-  return Response.json(contact, { status: 201 });
+  // Dedupe by email: update the existing contact instead of creating a twin.
+  const existing = email
+    ? await db.contact.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        orderBy: { createdAt: "asc" },
+      })
+    : null;
+
+  const contact = existing
+    ? await db.contact.update({
+        where: { id: existing.id },
+        data: {
+          firstName: data.firstName ?? existing.firstName,
+          lastName: data.lastName ?? existing.lastName,
+          email,
+          phone: data.phone ?? existing.phone,
+          title: data.title ?? existing.title,
+          leadId: leadId ?? existing.leadId,
+          customData: {
+            ...((existing.customData as Record<string, unknown>) ?? {}),
+            ...(data.customData ?? {}),
+          },
+        },
+      })
+    : await db.contact.create({
+        data: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email,
+          phone: data.phone,
+          title: data.title,
+          leadId: leadId ?? null,
+          customData: data.customData,
+          ownerId: caller.userId,
+        },
+      });
+  dispatchWebhookAfter(existing ? "CONTACT_UPDATED" : "CONTACT_CREATED", contact);
+  return Response.json(contact, { status: existing ? 200 : 201 });
 }
